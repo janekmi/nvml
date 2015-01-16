@@ -43,7 +43,9 @@
 #include <fcntl.h>
 #include <sys/file.h>
 #include <sys/mman.h>
+#include <sys/time.h>
 #include <unistd.h>
+#include <inttypes.h>
 
 #include "benchmark.hpp"
 #include "libpmem.h"
@@ -257,6 +259,9 @@ init_offsets(struct benchmark_args *args, struct rpmem_bench *mb,
 static int
 do_warmup(struct rpmem_bench *mb)
 {
+	struct timeval start, stop;
+	gettimeofday(&start,NULL);
+
 	/* clear the entire pool */
 	memset((char *)mb->pool + POOL_HDR_SIZE, 0,
 	       mb->pool_size - POOL_HDR_SIZE);
@@ -274,6 +279,13 @@ do_warmup(struct rpmem_bench *mb)
 		memset((char *)mb->pool + POOL_HDR_SIZE, 0xFF,
 		       mb->pool_size - POOL_HDR_SIZE);
 	}
+
+	gettimeofday(&stop, NULL);
+	uint64_t t1 = start.tv_sec * 1000000 + start.tv_usec;
+	uint64_t t2 = stop.tv_sec * 1000000 + stop.tv_usec;
+	uint64_t diff = t2 - t1;
+	fprintf(stdout, "do_warmup() [took: %" PRIu64 "]\n", diff);
+	fflush(stdout);
 
 	return 0;
 }
@@ -420,6 +432,11 @@ rpmem_persist_op(struct benchmark *bench, struct operation_info *info)
 			return ret;
 		}
 	}
+
+//	static int counter = 0;
+//	fprintf(stdout, "rpmem_persist_op(%d)\n", counter);
+//	fflush(stdout);
+//	++counter;
 
 	++*pos;
 	return 0;
@@ -603,6 +620,9 @@ rpmem_poolset_init(const char *path, struct rpmem_bench *mb,
 		}
 	}
 
+	fprintf(stdout, "rpmem_create() [done]\n");
+	fflush(stdout);
+
 	util_poolset_free(set);
 	return 0;
 
@@ -713,6 +733,9 @@ rpmem_init(struct benchmark *bench, struct benchmark_args *args)
 	assert(args != nullptr);
 	assert(args->opts != nullptr);
 
+	fprintf(stdout, "rpmem_init() [enter]\n");
+	fflush(stdout);
+
 	auto *mb = (struct rpmem_bench *)malloc(sizeof(struct rpmem_bench));
 	if (!mb) {
 		perror("malloc");
@@ -780,6 +803,9 @@ err_parse_mode:
 static int
 rpmem_exit(struct benchmark *bench, struct benchmark_args *args)
 {
+	fprintf(stdout, "rpmem_exit()\n");
+	fflush(stdout);
+
 	auto *mb = (struct rpmem_bench *)pmembench_get_priv(bench);
 	rpmem_poolset_fini(mb);
 	free(mb->offsets_pos);
