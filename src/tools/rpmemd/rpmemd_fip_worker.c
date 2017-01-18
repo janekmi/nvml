@@ -161,7 +161,7 @@ rpmemd_fip_worker_fini(struct rpmemd_fip_worker *worker)
 
 	util_mutex_lock(&worker->lock);
 
-	*worker->stop = 1;
+	 __sync_fetch_and_or(worker->stop, 1);
 
 	errno = pthread_cond_signal(&worker->cond);
 	if (errno) {

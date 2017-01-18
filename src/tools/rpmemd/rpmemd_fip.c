@@ -922,7 +922,7 @@ rpmemd_fip_process_stop_gpspm(struct rpmemd_fip *fip)
 	int lret = 0;
 
 	/* this stops all worker threads */
-	fip->closing = 1;
+	__sync_fetch_and_or(&fip->closing, 1);
 
 	/*
 	 * Signal all lanes that SEND has been completed.
