@@ -1254,7 +1254,7 @@ rpmem_fip_process_stop(struct rpmem_fip *fip)
 {
 	int ret;
 
-	fip->closing = 1;
+	__sync_fetch_and_or(&fip->closing, 1);
 
 	void *tret;
 	ret = pthread_join(fip->process_thread, &tret);

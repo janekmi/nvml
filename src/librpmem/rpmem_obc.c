@@ -140,7 +140,7 @@ rpmem_obc_close_conn(struct rpmem_obc *rpc)
 {
 	rpmem_ssh_close(rpc->ssh);
 
-	rpc->ssh = NULL;
+	(void)__sync_fetch_and_and(&rpc->ssh, 0);
 }
 
 /*

@@ -567,7 +567,7 @@ rpmem_close(RPMEMpool *rpp)
 {
 	RPMEM_LOG(INFO, "closing out-of-band connection");
 
-	rpp->closing = 1;
+	__sync_fetch_and_or(&rpp->closing, 1);
 
 	rpmem_fip_process_stop(rpp->fip);
 
