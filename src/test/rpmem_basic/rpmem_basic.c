@@ -87,7 +87,7 @@ const char *pool_attr_names[] = {
 
 #define POOL_ATTR_INIT_INDEX	0
 
-#define NLANES	1024
+#define NLANES	32
 
 struct pool_entry {
 	RPMEMpool *rpp;

@@ -57,7 +57,6 @@ void rpmem_fip_fini(struct rpmem_fip *fip);
 
 int rpmem_fip_connect(struct rpmem_fip *fip);
 int rpmem_fip_close(struct rpmem_fip *fip);
-int rpmem_fip_monitor(struct rpmem_fip *fip, int nonblock);
 int rpmem_fip_process_start(struct rpmem_fip *fip);
 int rpmem_fip_process_stop(struct rpmem_fip *fip);
 

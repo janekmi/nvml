@@ -301,6 +301,7 @@ rpmem_common_fip_init(RPMEMpool *rpp, struct rpmem_req_attr *req,
 		goto err_fip_init;
 	}
 
+	RPMEM_LOG(NOTICE, "final nlanes: %u", *nlanes);
 	RPMEM_LOG(INFO, "establishing in-band connection");
 
 	ret = rpmem_fip_connect(rpp->fip);
@@ -310,7 +311,6 @@ rpmem_common_fip_init(RPMEMpool *rpp, struct rpmem_req_attr *req,
 	}
 
 	RPMEM_LOG(NOTICE, "in-band connection established");
-	RPMEM_LOG(NOTICE, "final nlanes: %u", *nlanes);
 
 	return 0;
 err_fip_connect:
@@ -458,12 +458,6 @@ rpmem_create(const char *target, const char *pool_set_name,
 	if (ret)
 		goto err_fip_init;
 
-	ret = rpmem_fip_process_start(rpp->fip);
-	if (ret) {
-		ERR("!starting in-band connection thread");
-		goto err_fip_process;
-	}
-
 	ret = pthread_create(&rpp->monitor, NULL, rpmem_monitor_thread, rpp);
 	if (ret) {
 		errno = ret;
@@ -473,8 +467,6 @@ rpmem_create(const char *target, const char *pool_set_name,
 
 	return rpp;
 err_monitor:
-	rpmem_fip_process_stop(rpp->fip);
-err_fip_process:
 	rpmem_common_fip_fini(rpp);
 err_fip_init:
 	rpmem_obc_close(rpp->obc);
@@ -533,12 +525,6 @@ rpmem_open(const char *target, const char *pool_set_name,
 	if (ret)
 		goto err_fip_init;
 
-	ret = rpmem_fip_process_start(rpp->fip);
-	if (ret) {
-		ERR("!starting in-band connection thread");
-		goto err_fip_process;
-	}
-
 	ret = pthread_create(&rpp->monitor, NULL, rpmem_monitor_thread, rpp);
 	if (ret) {
 		errno = ret;
@@ -548,8 +534,6 @@ rpmem_open(const char *target, const char *pool_set_name,
 
 	return rpp;
 err_monitor:
-	rpmem_fip_process_stop(rpp->fip);
-err_fip_process:
 	rpmem_common_fip_fini(rpp);
 err_fip_init:
 	rpmem_obc_close(rpp->obc);
@@ -568,8 +552,6 @@ rpmem_close(RPMEMpool *rpp)
 	RPMEM_LOG(INFO, "closing out-of-band connection");
 
 	__sync_fetch_and_or(&rpp->closing, 1);
-
-	rpmem_fip_process_stop(rpp->fip);
 
 	int ret = rpmem_obc_close(rpp->obc);
 	if (ret)
