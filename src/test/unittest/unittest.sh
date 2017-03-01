@@ -2064,6 +2064,8 @@ function init_rpmem_on_node() {
 
 	validate_node_number $master
 
+	UNITTEST_DO_NOT_CHECK_OPEN_FILES=y
+
 	RPMEM_CMD=""
 	local SEPARATOR="|"
 	for slave in "$@"
