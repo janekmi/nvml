@@ -113,6 +113,8 @@ struct latency {
 	uint64_t min;
 	uint64_t avg;
 	double std_dev;
+	uint64_t pctl99_0p;
+	uint64_t pctl99_9p;
 };
 
 struct thread_results {
@@ -412,7 +414,9 @@ pmembench_print_header(struct pmembench *pb, struct benchmark *bench,
 	       "latency-avg[nsec];"
 	       "latency-min[nsec];"
 	       "latency-max[nsec];"
-	       "latency-std-dev[nsec]");
+	       "latency-std-dev[nsec];"
+	       "latency-pctl-99.0%%[nsec];"
+	       "latency-pctl-99.9%%[nsec]");
 	size_t i;
 	for (i = 0; i < bench->nclos; i++) {
 		if (!bench->clos[i].ignore_in_res) {
@@ -429,10 +433,11 @@ static void
 pmembench_print_results(struct benchmark *bench, struct benchmark_args *args,
 			struct total_results *res)
 {
-	printf("%f;%f;%f;%f;%f;%f;%ld;%ld;%ld;%f", res->total.avg, res->nopsps,
-	       res->total.max, res->total.min, res->total.med,
+	printf("%f;%f;%f;%f;%f;%f;%ld;%ld;%ld;%f;%ld;%ld", res->total.avg,
+	       res->nopsps, res->total.max, res->total.min, res->total.med,
 	       res->total.std_dev, res->latency.avg, res->latency.min,
-	       res->latency.max, res->latency.std_dev);
+	       res->latency.max, res->latency.std_dev, res->latency.pctl99_0p,
+	       res->latency.pctl99_9p);
 
 	size_t i;
 	for (i = 0; i < bench->nclos; i++) {
@@ -551,6 +556,17 @@ compare_doubles(const void *a1, const void *b1)
 {
 	const double *a = (const double *)a1;
 	const double *b = (const double *)b1;
+	return (*a > *b) - (*a < *b);
+}
+
+/*
+* compare_uint64t -- comparing function used for sorting
+*/
+static int
+compare_uint64t(const void *a1, const void *b1)
+{
+	const uint64_t *a = (const uint64_t *)a1;
+	const uint64_t *b = (const uint64_t *)b1;
 	return (*a > *b) - (*a < *b);
 }
 
@@ -731,9 +747,13 @@ get_total_results(struct total_results *tres)
 	}
 
 	/* average latency */
-	tres->latency.avg /= tres->nrepeats * tres->nthreads * tres->nops;
+	size_t count = tres->nrepeats * tres->nthreads * tres->nops;
+	tres->latency.avg /= count;
 
-	/* std deviation of latency */
+	uint64_t *ntotals = (uint64_t *)calloc(count, sizeof(uint64_t));
+	count = 0;
+
+	/* std deviation of latency and percentiles */
 	for (size_t i = 0; i < tres->nrepeats; i++) {
 		struct bench_results *res = &tres->res[i];
 		for (size_t j = 0; j < tres->nthreads; j++) {
@@ -751,11 +771,26 @@ get_total_results(struct total_results *tres)
 				tres->latency.std_dev += dev;
 
 				beg = &thres->end_op[o];
+
+				ntotals[count] = nsecs;
+				++count;
 			}
 		}
 	}
 
 	tres->latency.std_dev = sqrt(tres->latency.std_dev);
+
+	/* find 99.0% and 99.9% percentiles */
+	qsort(ntotals, count, sizeof(uint64_t), compare_uint64t);
+	uint64_t p99_0 = count * 99 / 100;
+	uint64_t p99_9 = count * 999 / 1000;
+	if (p99_0 >= count)
+		p99_0 = count - 1;
+	if (p99_9 >= count)
+		p99_9 = count - 1;
+	tres->latency.pctl99_0p = ntotals[p99_0];
+	tres->latency.pctl99_9p = ntotals[p99_9];
+	free(ntotals);
 
 	free(totals);
 	free(tend);
