@@ -305,7 +305,7 @@ rpmem_fip_lane_wait(struct rpmem_fip *fip, struct rpmem_fip_lane *lanep,
 	struct fi_cq_msg_entry cq_entry;
 
 	while (!fip->closing && (lanep->event & e)) {
-		sret = fi_cq_read(lanep->cq, &cq_entry, 1);
+		sret = fi_cq_sread(lanep->cq, &cq_entry, 1, NULL, RPMEM_FIP_CQ_WAIT_MS);
 		if (unlikely(fip->closing))
 			return 0;
 
