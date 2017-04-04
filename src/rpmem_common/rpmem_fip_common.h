@@ -42,7 +42,7 @@
 #include <rdma/fi_rma.h>
 
 #define RPMEM_FIVERSION FI_VERSION(FI_MAJOR_VERSION, FI_MINOR_VERSION)
-#define RPMEM_FIP_CQ_WAIT_MS	100
+#define RPMEM_FIP_CQ_WAIT_MS	1000
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
 
