@@ -201,7 +201,7 @@ rpmem_fip_lane_init(struct rpmem_fip *fip, struct rpmem_fip_lane *lanep)
 		.size = fip->cq_size,
 		.flags = 0,
 		.format = FI_CQ_FORMAT_MSG,
-		.wait_obj = FI_WAIT_NONE,
+		.wait_obj = FI_WAIT_UNSPEC,
 		.signaling_vector = 0,
 		.wait_cond = FI_CQ_COND_NONE,
 		.wait_set = NULL,
