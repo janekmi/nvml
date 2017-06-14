@@ -167,6 +167,8 @@ rpmem_fip_read_eq(struct fid_eq *eq, struct fi_eq_cm_entry *entry,
 	}
 
 	if (sret < 0 || (size_t)sret != sizeof(*entry)) {
+		RPMEMC_LOG(ERR, "fi_eq_sread: %d", (int)sret);
+
 		if (sret < 0)
 			ret = (int)sret;
 		else
