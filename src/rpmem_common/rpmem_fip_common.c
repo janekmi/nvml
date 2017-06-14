@@ -147,6 +147,8 @@ err_getinfo:
 	return ret;
 }
 
+#define MAX_RETRIES 100
+
 /*
  * rpmem_fip_read_eq -- read event queue entry with specified timeout
  */
@@ -158,8 +160,18 @@ rpmem_fip_read_eq(struct fid_eq *eq, struct fi_eq_cm_entry *entry,
 	ssize_t sret;
 	struct fi_eq_err_entry err;
 
+	int retry = 0;
+
+try_again:
 	sret = fi_eq_sread(eq, event, entry, sizeof(*entry), timeout, 0);
 	VALGRIND_DO_MAKE_MEM_DEFINED(&sret, sizeof(sret));
+
+	RPMEMC_LOG(ERR, "fi_eq_sread: %d", (int)sret);
+
+	if (sret == -FI_EAGAIN && retry < MAX_RETRIES) {
+		++retry;
+		goto try_again;
+	}
 
 	if (timeout != -1 && sret == -FI_ETIMEDOUT) {
 		errno = ETIMEDOUT;
@@ -167,8 +179,6 @@ rpmem_fip_read_eq(struct fid_eq *eq, struct fi_eq_cm_entry *entry,
 	}
 
 	if (sret < 0 || (size_t)sret != sizeof(*entry)) {
-		RPMEMC_LOG(ERR, "fi_eq_sread: %d", (int)sret);
-
 		if (sret < 0)
 			ret = (int)sret;
 		else
