@@ -2117,7 +2117,8 @@ util_replica_create_local(struct pool_set *set, unsigned repidx, int flags,
 		}
 	}
 	if (util_replica_init_headers_local(set, repidx, flags, sig, major,
-			compat, incompat, ro_compat, NULL, NULL, NULL) != 0) {
+			compat, incompat, ro_compat, prev_repl_uuid,
+			next_repl_uuid, arch_flags) != 0) {
 		LOG(2, "replica #%u headers initialization failed", repidx);
 		return -1;
 	}
