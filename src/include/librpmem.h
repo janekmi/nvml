@@ -104,13 +104,9 @@ const char *rpmem_check_version(unsigned major_required,
 const char *rpmem_errormsg(void);
 
 /* minimum size of a pool */
-#define RPMEM_MIN_POOL ((size_t)(1024 * 1024 * 2)) /* 2 MB */
-
-/*
- * This limit is set arbitrary to incorporate a pool header and required
- * alignment plus supply.
- */
-#define RPMEM_MIN_PART ((size_t)(1024 * 1024 * 2)) /* 2 MiB */
+#define RPMEM_MIN_POOL ((size_t)(1024 * 8)) /* 8 KB */
+/* minimum size of a part file */
+#define RPMEM_MIN_PART ((size_t)(1024 * 8)) /* 8 KB */
 
 #ifdef __cplusplus
 }
