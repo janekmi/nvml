@@ -266,7 +266,7 @@ rpmem_fip_lane_attrs[MAX_RPMEM_FIP_NODE][MAX_RPMEM_PM] = {
 		.n_per_rq = 0, /* unused */
 		.n_per_cq = 1,
 	},
-	[RPMEM_FIP_NODE_SERVER][RPMEM_PM_APM] = {
+	[RPMEM_FIP_NODE_SERVER][RPMEM_PM_QFM] = {
 		.n_per_sq = 1, /* SEND */
 		.n_per_rq = 1, /* RECV */
 		.n_per_cq = 3,

@@ -150,6 +150,7 @@ struct rpmemd_fip {
 	struct rpmem_fip_lane rd_lane;
 
 	struct rpmem_msg_persist *pmsg;	/* persist message buffer */
+	struct rpmem_msg_persist_qfm *pmsg_qfm;	/* QFM persist message buffer */
 	struct fid_mr *pmsg_mr;		/* persist message memory region */
 	void *pmsg_mr_desc;		/* persist message local descriptor */
 
@@ -724,14 +725,14 @@ rpmemd_fip_init_qfm(struct rpmemd_fip *fip)
 
 	/* allocate persist message buffer */
 	size_t msg_size = fip->nlanes * sizeof(struct rpmem_msg_persist_qfm);
-	fip->pmsg = malloc(msg_size);
-	if (!fip->pmsg) {
+	fip->pmsg_qfm = malloc(msg_size);
+	if (!fip->pmsg_qfm) {
 		RPMEMD_LOG(ERR, "!allocating QFM messages buffer");
 		goto err_msg_malloc;
 	}
 
 	/* register persist message buffer */
-	ret = fi_mr_reg(fip->domain, fip->pmsg, msg_size, FI_RECV,
+	ret = fi_mr_reg(fip->domain, fip->pmsg_qfm, msg_size, FI_RECV,
 			0, 0, 0, &fip->pmsg_mr, NULL);
 	if (ret) {
 		RPMEMD_FI_ERR(ret, "registering QFM messages buffer");
@@ -771,8 +772,8 @@ rpmemd_fip_init_qfm(struct rpmemd_fip *fip)
 		rpmem_fip_msg_init(&lanep->recv,
 				fip->pmsg_mr_desc, 0,
 				lanep,
-				&fip->pmsg[i],
-				sizeof(fip->pmsg[i]),
+				&fip->pmsg_qfm[i],
+				sizeof(fip->pmsg_qfm[i]),
 				FI_COMPLETION);
 
 		/* initialize SEND message */
@@ -791,7 +792,7 @@ err_msg_resp_malloc:
 	RPMEMD_FI_CLOSE(fip->pmsg_mr,
 			"unregistering GPSPM messages buffer");
 err_mr_reg_msg:
-	free(fip->pmsg);
+	free(fip->pmsg_qfm);
 err_msg_malloc:
 	return -1;
 }
@@ -816,7 +817,7 @@ rpmemd_fip_fini_qfm(struct rpmemd_fip *fip)
 	if (ret)
 		lret = ret;
 
-	free(fip->pmsg);
+	free(fip->pmsg_qfm);
 	free(fip->pres);
 
 	return lret;
@@ -845,12 +846,11 @@ rpmemd_fip_check_pmsg(struct rpmemd_fip *fip, struct rpmem_msg_persist *pmsg)
 	}
 
 	if( (fip->persist_method == RPMEM_PM_QFM) & (pmsg->size > MAX_QFM_DATA_SIZE) )
-	  {
-	    RPMEMD_LOG(ERR, "requested persist size too big for QFM (%lu)",
-			pmsg->size);
+	{
+		RPMEMD_LOG(ERR, "requested persist size too big for QFM (%lu)",
+				pmsg->size);
 		return -1;
-	    
-	  }
+	}
 
 	return 0;
 }
@@ -882,12 +882,12 @@ rpmemd_fip_process_one(struct rpmemd_fip *fip, struct rpmemd_fip_lane *lanep)
 	pres->lane = pmsg->lane;
 
 	if(fip->persist_method == RPMEM_PM_QFM)
-	  {
-	    struct rpmem_msg_persist_qfm *pmsg_qfm = rpmem_fip_msg_get_pmsg_qfm(&lanep->recv);
-	    pmem_memcpy_persist((void *)pmsg_qfm->addr, (void*)pmsg_qfm->data, pmsg_qfm->size);
-	  } 
-         else
-	   {
+	{
+		struct rpmem_msg_persist_qfm *pmsg_qfm = rpmem_fip_msg_get_pmsg_qfm(&lanep->recv);
+		pmem_memcpy_persist((void *)pmsg_qfm->addr, (void*)pmsg_qfm->data, pmsg_qfm->size);
+	}
+	else
+	{
 	/*
 	 * Perform the persist operation.
 	 *
@@ -897,8 +897,8 @@ rpmemd_fip_process_one(struct rpmemd_fip *fip, struct rpmemd_fip_lane *lanep)
 	 * We could issue flush operation, do some other work like
 	 * posting RECV buffer and then call drain. Need to consider this.
 	 */
-	     fip->persist((void *)pmsg->addr, pmsg->size);
-	   }
+		fip->persist((void *)pmsg->addr, pmsg->size);
+	}
 
 	/* post lane's RECV buffer */
 	ret = rpmemd_fip_gpspm_post_msg(lanep);

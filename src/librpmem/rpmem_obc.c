@@ -84,7 +84,8 @@ rpmem_obc_check_ibc_attr(struct rpmem_msg_ibc_attr *ibc)
 	}
 
 	if (ibc->persist_method != RPMEM_PM_GPSPM &&
-		ibc->persist_method != RPMEM_PM_APM) {
+		ibc->persist_method != RPMEM_PM_APM &&
+		ibc->persist_method != RPMEM_PM_QFM) {
 		ERR("invalid persistency method received -- %u",
 				ibc->persist_method);
 		errno = EPROTO;

@@ -1228,53 +1228,56 @@ rpmem_fip_persist_qfm(struct rpmem_fip *fip, size_t offset,
 	struct rpmem_fip_plane_qfm *qfm = (void *)lanep;
 	int ret;
 
-	if( len > MAX_QFM_DATA_SIZE )
-	  {
-	    ERR("Perists buffer size too big (more than %d)", MAX_QFM_DATA_SIZE);
-	    return -1; 
-	  }
+	while (len > 0) {
+		size_t len_tmp = len > MAX_QFM_DATA_SIZE ?
+				MAX_QFM_DATA_SIZE : len;
+		ret = rpmem_fip_lane_wait(fip, &lanep->base, FI_SEND);
+		if (unlikely(ret)) {
+			ERR("waiting for SEND completion failed");
+			return ret;
+		}
 
-	ret = rpmem_fip_lane_wait(fip, &lanep->base, FI_SEND);
-	if (unlikely(ret)) {
-		ERR("waiting for SEND completion failed");
-		return ret;
+		rpmem_fip_lane_begin(&lanep->base, FI_RECV | FI_SEND);
+
+		/* WRITE for requested memory region */
+		/* ret = rpmem_fip_writemsg(lanep->base.ep,
+				&gpspm->write, laddr, len, raddr);
+		if (unlikely(ret)) {
+			RPMEM_FI_ERR((int)ret, "RMA write");
+			return ret;
+			}*/
+
+		/* SEND persist message */
+		msg = rpmem_fip_msg_get_pmsg_qfm(&qfm->send);
+		msg->lane = lane;
+		msg->addr = raddr;
+		msg->size = len_tmp;
+		memcpy(msg->data, laddr, len_tmp);
+
+		ret = rpmem_fip_sendmsg(lanep->base.ep, &qfm->send);
+		if (unlikely(ret)) {
+			RPMEM_FI_ERR(ret, "MSG send");
+			return ret;
+		}
+
+		/* wait for persist operation completion */
+		ret = rpmem_fip_lane_wait(fip, &lanep->base, FI_RECV);
+		if (unlikely(ret)) {
+			ERR("waiting for RECV completion failed");
+			return ret;
+		}
+
+		ret = rpmem_fip_qfm_post_resp(fip, lanep);
+		if (unlikely(ret)) {
+			ERR("posting RECV buffer failed");
+			return ret;
+		}
+
+		laddr = (void *)((char *)laddr + len_tmp);
+		raddr += len_tmp;
+		len -= len_tmp;
 	}
 
-	rpmem_fip_lane_begin(&lanep->base, FI_RECV | FI_SEND);
-
-	/* WRITE for requested memory region */
-	/* ret = rpmem_fip_writemsg(lanep->base.ep,
-			&gpspm->write, laddr, len, raddr);
-	if (unlikely(ret)) {
-		RPMEM_FI_ERR((int)ret, "RMA write");
-		return ret;
-		}*/
-
-	/* SEND persist message */
-	msg = rpmem_fip_msg_get_pmsg_qfm(&qfm->send);
-	msg->lane = lane;
-	msg->addr = raddr;
-	msg->size = len;
-	memcpy(msg->data, laddr, len); 
-
-	ret = rpmem_fip_sendmsg(lanep->base.ep, &qfm->send);
-	if (unlikely(ret)) {
-		RPMEM_FI_ERR(ret, "MSG send");
-		return ret;
-	}
-
-	/* wait for persist operation completion */
-	ret = rpmem_fip_lane_wait(fip, &lanep->base, FI_RECV);
-	if (unlikely(ret)) {
-		ERR("waiting for RECV completion failed");
-		return ret;
-	}
-
-	ret = rpmem_fip_qfm_post_resp(fip, lanep);
-	if (unlikely(ret)) {
-		ERR("posting RECV buffer failed");
-		return ret;
-	}
 
 	return 0;
 }

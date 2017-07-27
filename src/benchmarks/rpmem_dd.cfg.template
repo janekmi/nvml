@@ -1,0 +1,11 @@
+# Global parameters
+[global]
+group = rpmem
+file = /home/nesperf/poolset-dir/poolset.dd
+ops-per-thread = $OPS_PER_THREAD
+
+[rpmem_persist_DS$DATA_SIZE]
+bench = rpmem_persist
+threads = $THREADS
+data-size = $DATA_SIZE
+mem-mode = $MEM_MODE
