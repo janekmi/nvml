@@ -138,6 +138,9 @@ rpmemd_get_pm(struct rpmemd_config *config)
 
 	if (config->persist_apm)
 		ret = RPMEM_PM_APM;
+	else
+	  if (config->persist_qfm)
+	    ret = RPMEM_PM_QFM; 
 
 	return ret;
 }
@@ -700,6 +703,8 @@ rpmemd_print_info(struct rpmemd *rpmemd)
 		bool2str(rpmemd->config.persist_apm));
 	RPMEMD_DBG("\tpersist GPSPM: %s",
 		bool2str(rpmemd->config.persist_general));
+	RPMEMD_DBG("\tpersist QFM: %s",
+		bool2str(rpmemd->config.persist_qfm));
 	RPMEMD_DBG("\tuse syslog: %s", bool2str(rpmemd->config.use_syslog));
 	RPMEMD_DBG("\tlog file: %s", _str(rpmemd->config.log_file));
 	RPMEMD_DBG("\tlog level: %s",

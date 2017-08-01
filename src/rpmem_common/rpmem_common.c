@@ -124,6 +124,7 @@ rpmem_xread(int fd, void *buf, size_t len, int flags)
 static const char *pm2str[MAX_RPMEM_PM] = {
 	[RPMEM_PM_APM] = "Appliance Persistency Method",
 	[RPMEM_PM_GPSPM] = "General Purpose Server Persistency Method",
+	[RPMEM_PM_QFM] = "QoS Fix Method",
 };
 
 /*

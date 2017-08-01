@@ -117,6 +117,12 @@ rpmemd_apply_pm_policy(enum rpmem_persist_method *persist_method,
 		*persist_method = RPMEM_PM_GPSPM;
 		*persist = is_pmem ? rpmemd_pmem_persist : pmem_msync;
 		break;
+
+	case RPMEM_PM_QFM:
+	  *persist_method = RPMEM_PM_QFM;
+	  *persist = is_pmem ? rpmemd_pmem_persist : pmem_msync;
+	  break;
+
 	default:
 		RPMEMD_FATAL("invalid persist method: %d", *persist_method);
 		return -1;

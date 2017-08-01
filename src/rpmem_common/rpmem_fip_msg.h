@@ -152,6 +152,15 @@ rpmem_fip_msg_get_pmsg(struct rpmem_fip_msg *msg)
 }
 
 /*
+ * rpmem_fip_msg_get_pmsg -- returns message buffer as a persist message
+ */
+static inline struct rpmem_msg_persist_qfm *
+rpmem_fip_msg_get_pmsg_qfm(struct rpmem_fip_msg *msg)
+{
+	return (struct rpmem_msg_persist_qfm *)msg->iov.iov_base;
+}
+
+/*
  * rpmem_fip_msg_get_pres -- returns message buffer as a persist response
  */
 static inline struct rpmem_msg_persist_resp *

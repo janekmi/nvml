@@ -140,6 +140,16 @@ struct rpmem_fip_plane_gpspm {
 };
 
 /*
+ * rpmem_fip_plane_qfm -- persist operation's lane for QoS Fix Method (QFM)
+ */
+struct rpmem_fip_plane_qfm {
+	struct rpmem_fip_lane base;	/* base lane structure */
+        struct rpmem_fip_msg send;	/* SEND message */
+	struct rpmem_fip_msg recv;	/* RECV message */
+
+};
+
+/*
  * rpmem_fip_rlane -- read operation's lane
  */
 struct rpmem_fip_rlane {
@@ -172,11 +182,13 @@ struct rpmem_fip {
 		struct rpmem_fip_lane base;
 		struct rpmem_fip_plane_apm apm;
 		struct rpmem_fip_plane_gpspm gpspm;
+	        struct rpmem_fip_plane_qfm qfm;
 	} LANE_UNION_ALIGN *lanes;
 
 	os_thread_t monitor;
 
 	struct rpmem_msg_persist *pmsg;	/* persist message buffer */
+	struct rpmem_msg_persist_qfm *pmsg_qfm;	/* QFM persist message buffer */
 	struct fid_mr *pmsg_mr;		/* persist message memory region */
 	void *pmsg_mr_desc;		/* persist message memory descriptor */
 
@@ -1037,6 +1049,238 @@ rpmem_fip_persist_gpspm(struct rpmem_fip *fip, size_t offset,
 	return 0;
 }
 
+
+/* -------------------------- QFM --------------------------------------*/
+
+
+/*
+ * rpmem_fip_gpspm_post_resp -- (internal) post persist response message buffer
+ */
+static inline int
+rpmem_fip_qfm_post_resp(struct rpmem_fip *fip,
+	struct rpmem_fip_plane_qfm *lanep)
+{
+	int ret = rpmem_fip_recvmsg(lanep->base.ep, &lanep->recv);
+	if (unlikely(ret)) {
+		RPMEM_FI_ERR(ret, "posting QFM recv buffer");
+		return ret;
+	}
+
+	return 0;
+}
+
+/*
+ * rpmem_fip_post_lanes_gpspm -- (internal) post all persist response message
+ * buffers
+ */
+static int
+rpmem_fip_post_lanes_qfm(struct rpmem_fip *fip)
+{
+	int ret = 0;
+	for (unsigned i = 0; i < fip->nlanes; i++) {
+		ret = rpmem_fip_qfm_post_resp(fip, &fip->lanes[i].qfm);
+		if (ret)
+			break;
+	}
+
+	return ret;
+}
+
+/*
+ * rpmem_fip_init_lanes_gpspm -- (internal) initialize lanes for GPSPM
+ */
+static int
+rpmem_fip_init_lanes_qfm(struct rpmem_fip *fip)
+{
+	ASSERTne(Pagesize, 0);
+
+	int ret = 0;
+
+	/* allocate persist messages buffer */
+	size_t msg_size = fip->nlanes * sizeof(struct rpmem_msg_persist_qfm);
+	msg_size = PAGE_ALIGNED_UP_SIZE(msg_size);
+	errno = posix_memalign((void **)&fip->pmsg_qfm, Pagesize, msg_size);
+	if (errno) {
+		RPMEM_LOG(ERR, "!allocating messages buffer");
+		ret = -1;
+		goto err_malloc_pmsg;
+	}
+
+	/*
+	 * Register persist messages buffer. The persist messages
+	 * are sent to daemon thus the FI_SEND access flag.
+	 */
+	ret = fi_mr_reg(fip->domain, fip->pmsg_qfm, msg_size, FI_SEND,
+			0, 0, 0, &fip->pmsg_mr, NULL);
+	if (ret) {
+		RPMEM_FI_ERR(ret, "registering messages buffer");
+		goto err_fi_mr_reg_pmsg;
+	}
+
+	/* get persist messages buffer local descriptor */
+	fip->pmsg_mr_desc = fi_mr_desc(fip->pmsg_mr);
+
+	/* allocate persist response messages buffer */
+	size_t msg_resp_size = fip->nlanes *
+				sizeof(struct rpmem_msg_persist_resp);
+	msg_resp_size = PAGE_ALIGNED_UP_SIZE(msg_resp_size);
+	errno = posix_memalign((void **)&fip->pres, Pagesize, msg_resp_size);
+	if (errno) {
+		RPMEM_LOG(ERR, "!allocating messages response buffer");
+		ret = -1;
+		goto err_malloc_pres;
+	}
+
+	/*
+	 * Register persist messages response buffer. The persist response
+	 * messages are received from daemon thus the FI_RECV access flag.
+	 */
+	ret = fi_mr_reg(fip->domain, fip->pres, msg_resp_size, FI_RECV,
+			0, 0, 0, &fip->pres_mr, NULL);
+	if (ret) {
+		RPMEM_FI_ERR(ret, "registering messages response buffer");
+		goto err_fi_mr_reg_pres;
+	}
+
+	/* get persist response messages buffer local descriptor */
+	fip->pres_mr_desc = fi_mr_desc(fip->pres_mr);
+
+	/*
+	 * Initialize all required structures for:
+	 * WRITE, SEND and RECV operations.
+	 *
+	 * If the completion is required the FI_COMPLETION flag and
+	 * appropriate context should be used.
+	 *
+	 * In GPSPM only the RECV and SEND completions are required.
+	 *
+	 * For RECV the context is RECV operation structure used for
+	 * fi_recvmsg(3) function call.
+	 *
+	 * For SEND the context is lane structure.
+	 *
+	 * The received buffer contains a lane id which is used
+	 * to obtain a lane which must be signaled that operation
+	 * has been completed.
+	 */
+	unsigned i;
+	for (i = 0; i < fip->nlanes; i++) {
+		/* WRITE */
+		/* rpmem_fip_rma_init(&fip->lanes[i].gpspm.write,
+				fip->mr_desc, 0,
+				fip->rkey,
+				&fip->lanes[i].gpspm,
+				0);
+		*/
+
+		/* SEND */
+		rpmem_fip_msg_init(&fip->lanes[i].qfm.send,
+				fip->pmsg_mr_desc, 0,
+				&fip->lanes[i].qfm,
+				&fip->pmsg_qfm[i],
+				sizeof(fip->pmsg_qfm[i]),
+				FI_COMPLETION);
+
+		/* RECV */
+		rpmem_fip_msg_init(&fip->lanes[i].qfm.recv,
+				fip->pres_mr_desc, 0,
+				&fip->lanes[i].qfm.recv,
+				&fip->pres[i],
+				sizeof(fip->pres[i]),
+				FI_COMPLETION);
+	}
+
+	return 0;
+err_fi_mr_reg_pres:
+	free(fip->pres);
+err_malloc_pres:
+	RPMEM_FI_CLOSE(fip->pmsg_mr, "unregistering messages buffer");
+err_fi_mr_reg_pmsg:
+	free(fip->pmsg_qfm);
+err_malloc_pmsg:
+	return ret;
+}
+
+/*
+ * rpmem_fip_fini_lanes_qfm -- (internal) deinitialize lanes for QFM
+ */
+static void
+rpmem_fip_fini_lanes_qfm(struct rpmem_fip *fip)
+{
+	RPMEM_FI_CLOSE(fip->pmsg_mr, "unregistering messages buffer");
+	RPMEM_FI_CLOSE(fip->pres_mr, "unregistering messages "
+			"response buffer");
+	free(fip->pmsg_qfm);
+	free(fip->pres);
+}
+
+/*
+ * rpmem_fip_persist_gpspm -- (internal) perform persist operation for GPSPM
+ */
+static int
+rpmem_fip_persist_qfm(struct rpmem_fip *fip, size_t offset,
+	size_t len, unsigned lane)
+{
+	struct rpmem_fip_plane_qfm *lanep = &fip->lanes[lane].qfm;
+	void *laddr = (void *)((uintptr_t)fip->laddr + offset);
+	uint64_t raddr = fip->raddr + offset;
+	struct rpmem_msg_persist_qfm *msg;
+	struct rpmem_fip_plane_qfm *qfm = (void *)lanep;
+	int ret;
+
+	if( len > MAX_QFM_DATA_SIZE )
+	  {
+	    ERR("Perists buffer size too big (more than %d)", MAX_QFM_DATA_SIZE);
+	    return -1; 
+	  }
+
+	ret = rpmem_fip_lane_wait(fip, &lanep->base, FI_SEND);
+	if (unlikely(ret)) {
+		ERR("waiting for SEND completion failed");
+		return ret;
+	}
+
+	rpmem_fip_lane_begin(&lanep->base, FI_RECV | FI_SEND);
+
+	/* WRITE for requested memory region */
+	/* ret = rpmem_fip_writemsg(lanep->base.ep,
+			&gpspm->write, laddr, len, raddr);
+	if (unlikely(ret)) {
+		RPMEM_FI_ERR((int)ret, "RMA write");
+		return ret;
+		}*/
+
+	/* SEND persist message */
+	msg = rpmem_fip_msg_get_pmsg_qfm(&qfm->send);
+	msg->lane = lane;
+	msg->addr = raddr;
+	msg->size = len;
+	memcpy(msg->data, laddr, len); 
+
+	ret = rpmem_fip_sendmsg(lanep->base.ep, &qfm->send);
+	if (unlikely(ret)) {
+		RPMEM_FI_ERR(ret, "MSG send");
+		return ret;
+	}
+
+	/* wait for persist operation completion */
+	ret = rpmem_fip_lane_wait(fip, &lanep->base, FI_RECV);
+	if (unlikely(ret)) {
+		ERR("waiting for RECV completion failed");
+		return ret;
+	}
+
+	ret = rpmem_fip_qfm_post_resp(fip, lanep);
+	if (unlikely(ret)) {
+		ERR("posting RECV buffer failed");
+		return ret;
+	}
+
+	return 0;
+}
+
+
+
 /*
  * rpmem_fip_ops -- some operations specific for persistency method used
  */
@@ -1054,6 +1298,12 @@ static struct rpmem_fip_ops rpmem_fip_ops[MAX_RPMEM_PM] = {
 		.lanes_init_mem = rpmem_fip_init_mem_lanes_apm,
 		.lanes_fini = rpmem_fip_fini_lanes_apm,
 		.lanes_post = rpmem_fip_post_lanes_apm,
+	},
+        [RPMEM_PM_QFM] = {
+		.persist = rpmem_fip_persist_qfm,
+		.lanes_init = rpmem_fip_init_lanes_qfm,
+		.lanes_fini = rpmem_fip_fini_lanes_qfm,
+		.lanes_post = rpmem_fip_post_lanes_qfm,
 	},
 };
 

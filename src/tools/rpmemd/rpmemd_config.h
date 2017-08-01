@@ -62,6 +62,7 @@ struct rpmemd_config {
 	bool pool_set;
 	bool persist_apm;
 	bool persist_general;
+	bool persist_qfm;
 	bool use_syslog;
 	uint64_t max_lanes;
 	enum rpmemd_log_level log_level;

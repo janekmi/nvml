@@ -49,6 +49,8 @@
 #define RPMEM_PROV_SIZE		32
 #define RPMEM_USER_SIZE		16
 
+#define MAX_QFM_DATA_SIZE       4096
+
 /*
  * rpmem_msg_type -- type of messages
  */
@@ -215,6 +217,17 @@ struct rpmem_msg_persist {
 	uint64_t addr;	/* remote memory address */
 	uint64_t size;	/* remote memory size */
 };
+
+/*
+ * rpmem_msg_persist -- remote persist message
+ */
+struct rpmem_msg_persist_qfm {
+	uint64_t lane;	/* lane identifier */
+	uint64_t addr;	/* remote memory address */
+	uint64_t size;	/* remote memory size */
+        uint8_t data[MAX_QFM_DATA_SIZE]; /* data to copy for QFM */
+};
+
 
 /*
  * rpmem_msg_persist_resp -- remote persist response message

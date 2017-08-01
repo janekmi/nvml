@@ -66,6 +66,7 @@ enum rpmemd_option {
 	RPD_OPT_POOLSET_DIR,
 	RPD_OPT_PERSIST_APM,
 	RPD_OPT_PERSIST_GENERAL,
+	RPD_OPT_PERSIST_QFM,
 	RPD_OPT_USE_SYSLOG,
 	RPD_OPT_LOG_LEVEL,
 	RPD_OPT_RM_POOLSET,
@@ -87,6 +88,7 @@ static const struct option options[] = {
 {"poolset-dir",		required_argument,	NULL, RPD_OPT_POOLSET_DIR},
 {"persist-apm",		no_argument,		NULL, RPD_OPT_PERSIST_APM},
 {"persist-general",	no_argument,		NULL, RPD_OPT_PERSIST_GENERAL},
+{"persist-qfm",	        no_argument,		NULL, RPD_OPT_PERSIST_QFM},
 {"use-syslog",		no_argument,		NULL, RPD_OPT_USE_SYSLOG},
 {"log-level",		required_argument,	NULL, RPD_OPT_LOG_LEVEL},
 {"remove",		required_argument,	NULL, 'r'},
@@ -109,6 +111,7 @@ static const char *help_str =
 "      --poolset-dir <path>      pool set files directory\n"
 "      --persist-apm             enable Appliance Persistency Method\n"
 "      --persist-general         enable General Server Persistency Mechanism\n"
+"      --persist-qfm             enable QoS Fix Persistency Mechanism\n"
 "      --use-syslog              use syslog(3) for logging messages\n"
 "      --log-level <level>       set log level value\n"
 VALUE_INDENT "err     error conditions\n"
@@ -205,6 +208,9 @@ set_option(enum rpmemd_option option, const char *value,
 		break;
 	case RPD_OPT_PERSIST_GENERAL:
 		parse_config_bool(&config->persist_general, value);
+		break;
+	case RPD_OPT_PERSIST_QFM:
+		parse_config_bool(&config->persist_qfm, value);
 		break;
 	case RPD_OPT_USE_SYSLOG:
 		parse_config_bool(&config->use_syslog, value);
@@ -571,6 +577,7 @@ config_set_default(struct rpmemd_config *config, const char *poolset_dir)
 		RPMEMD_FATAL("!strdup");
 
 	config->persist_apm	= false;
+	config->persist_qfm	= false;
 	config->persist_general	= true;
 	config->use_syslog	= true;
 	config->max_lanes	= RPMEM_DEFAULT_MAX_LANES;

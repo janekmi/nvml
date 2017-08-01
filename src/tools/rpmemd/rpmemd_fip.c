@@ -48,6 +48,7 @@
 #include <rdma/fi_cm.h>
 #include <rdma/fi_errno.h>
 
+#include "libpmem.h"
 #include "rpmemd_log.h"
 
 #include "rpmem_common.h"
@@ -712,6 +713,116 @@ rpmemd_fip_fini_gpspm(struct rpmemd_fip *fip)
 	return lret;
 }
 
+
+/*
+ * rpmemd_fip_init_qfm -- initialize QFM resources
+ */
+static int
+rpmemd_fip_init_qfm(struct rpmemd_fip *fip)
+{
+	int ret;
+
+	/* allocate persist message buffer */
+	size_t msg_size = fip->nlanes * sizeof(struct rpmem_msg_persist_qfm);
+	fip->pmsg = malloc(msg_size);
+	if (!fip->pmsg) {
+		RPMEMD_LOG(ERR, "!allocating QFM messages buffer");
+		goto err_msg_malloc;
+	}
+
+	/* register persist message buffer */
+	ret = fi_mr_reg(fip->domain, fip->pmsg, msg_size, FI_RECV,
+			0, 0, 0, &fip->pmsg_mr, NULL);
+	if (ret) {
+		RPMEMD_FI_ERR(ret, "registering QFM messages buffer");
+		goto err_mr_reg_msg;
+	}
+
+	/* get persist message buffer's local descriptor */
+	fip->pmsg_mr_desc = fi_mr_desc(fip->pmsg_mr);
+
+	/* allocate persist response message buffer */
+	size_t msg_resp_size = fip->nlanes *
+		sizeof(struct rpmem_msg_persist_resp);
+	fip->pres = malloc(msg_resp_size);
+	if (!fip->pres) {
+		RPMEMD_FI_ERR(ret, "allocating GPSPM messages response buffer");
+		goto err_msg_resp_malloc;
+	}
+
+	/* register persist response message buffer */
+	ret = fi_mr_reg(fip->domain, fip->pres, msg_resp_size, FI_SEND,
+			0, 0, 0, &fip->pres_mr, NULL);
+	if (ret) {
+		RPMEMD_FI_ERR(ret, "registering GPSPM messages "
+				"response buffer");
+		goto err_mr_reg_msg_resp;
+	}
+
+	/* get persist message buffer's local descriptor */
+	fip->pres_mr_desc = fi_mr_desc(fip->pres_mr);
+
+	/* initialize lanes */
+	unsigned i;
+	for (i = 0; i < fip->nlanes; i++) {
+		struct rpmemd_fip_lane *lanep = &fip->lanes[i];
+
+		/* initialize RECV message */
+		rpmem_fip_msg_init(&lanep->recv,
+				fip->pmsg_mr_desc, 0,
+				lanep,
+				&fip->pmsg[i],
+				sizeof(fip->pmsg[i]),
+				FI_COMPLETION);
+
+		/* initialize SEND message */
+		rpmem_fip_msg_init(&lanep->send,
+				fip->pres_mr_desc, 0,
+				lanep,
+				&fip->pres[i],
+				sizeof(fip->pres[i]),
+				FI_COMPLETION);
+	}
+
+	return 0;
+err_mr_reg_msg_resp:
+	free(fip->pres);
+err_msg_resp_malloc:
+	RPMEMD_FI_CLOSE(fip->pmsg_mr,
+			"unregistering GPSPM messages buffer");
+err_mr_reg_msg:
+	free(fip->pmsg);
+err_msg_malloc:
+	return -1;
+}
+
+/*
+ * rpmemd_fip_fini_qfm -- deinitialize QFM resources and return last
+ * error code
+ */
+static int
+rpmemd_fip_fini_qfm(struct rpmemd_fip *fip)
+{
+	int lret = 0;
+	int ret;
+
+	ret = RPMEMD_FI_CLOSE(fip->pmsg_mr,
+			"unregistering QFM messages buffer");
+	if (ret)
+		lret = ret;
+
+	ret = RPMEMD_FI_CLOSE(fip->pres_mr,
+			"unregistering QFM messages response buffer");
+	if (ret)
+		lret = ret;
+
+	free(fip->pmsg);
+	free(fip->pres);
+
+	return lret;
+}
+
+
 /*
  * rpmemd_fip_check_pmsg -- verify persist message
  */
@@ -732,6 +843,14 @@ rpmemd_fip_check_pmsg(struct rpmemd_fip *fip, struct rpmem_msg_persist *pmsg)
 			raddr, pmsg->size);
 		return -1;
 	}
+
+	if( (fip->persist_method == RPMEM_PM_QFM) & (pmsg->size > MAX_QFM_DATA_SIZE) )
+	  {
+	    RPMEMD_LOG(ERR, "requested persist size too big for QFM (%lu)",
+			pmsg->size);
+		return -1;
+	    
+	  }
 
 	return 0;
 }
@@ -762,6 +881,13 @@ rpmemd_fip_process_one(struct rpmemd_fip *fip, struct rpmemd_fip_lane *lanep)
 	/* return back the lane id */
 	pres->lane = pmsg->lane;
 
+	if(fip->persist_method == RPMEM_PM_QFM)
+	  {
+	    struct rpmem_msg_persist_qfm *pmsg_qfm = rpmem_fip_msg_get_pmsg_qfm(&lanep->recv);
+	    pmem_memcpy_persist((void *)pmsg_qfm->addr, (void*)pmsg_qfm->data, pmsg_qfm->size);
+	  } 
+         else
+	   {
 	/*
 	 * Perform the persist operation.
 	 *
@@ -771,7 +897,8 @@ rpmemd_fip_process_one(struct rpmemd_fip *fip, struct rpmemd_fip_lane *lanep)
 	 * We could issue flush operation, do some other work like
 	 * posting RECV buffer and then call drain. Need to consider this.
 	 */
-	fip->persist((void *)pmsg->addr, pmsg->size);
+	     fip->persist((void *)pmsg->addr, pmsg->size);
+	   }
 
 	/* post lane's RECV buffer */
 	ret = rpmemd_fip_gpspm_post_msg(lanep);
@@ -939,6 +1066,13 @@ static struct rpmemd_fip_ops rpmemd_fip_ops[MAX_RPMEM_PM] = {
 	[RPMEM_PM_GPSPM] = {
 		.init = rpmemd_fip_init_gpspm,
 		.fini = rpmemd_fip_fini_gpspm,
+		.post = rpmemd_fip_post_gpspm,
+		.process_start = rpmemd_fip_process_start_gpspm,
+		.process_stop = rpmemd_fip_process_stop_gpspm,
+	},
+	[RPMEM_PM_QFM] = {
+		.init = rpmemd_fip_init_qfm,
+		.fini = rpmemd_fip_fini_qfm,
 		.post = rpmemd_fip_post_gpspm,
 		.process_start = rpmemd_fip_process_start_gpspm,
 		.process_stop = rpmemd_fip_process_stop_gpspm,

@@ -81,7 +81,7 @@ enum rpmem_err {
 enum rpmem_persist_method {
 	RPMEM_PM_GPSPM	= 1,	/* General Purpose Server Persistency Method */
 	RPMEM_PM_APM	= 2,	/* Appliance Persistency Method */
-
+	RPMEM_PM_QFM	= 3,	/* QoS Fix Method */
 	MAX_RPMEM_PM,
 };
 
