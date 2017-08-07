@@ -222,6 +222,7 @@ ifeq ($(call check_compiler, icc), n)
 COMMON_FLAGS += -Wunused-macros
 endif
 COMMON_FLAGS += -fno-common
+COMMON_FLAGS += -mavx512f
 
 CXXFLAGS  = -std=c++11
 CXXFLAGS += $(GLIBC_CXXFLAGS)

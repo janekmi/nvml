@@ -67,6 +67,7 @@ ifeq ($(call check_flag, -Wmissing-variable-declarations), y)
 DEFAULT_CFLAGS += -Wmissing-variable-declarations
 endif
 endif
+CFLAGS += -mavx512f
 
 CFLAGS += -mavx512f
 
