@@ -1205,7 +1205,7 @@ memmove512_nodrain_movnt(void *pmemdest, const void *src, size_t len)
  */
 static void *(*Func_memmove_nodrain)
 	(void *pmemdest, const void *src, size_t len) =
-		memmove512_nodrain_movnt;
+		memmove_nodrain_normal;
 
 /*
  * pmem_memmove_nodrain -- memmove to pmem without hw drain
@@ -1460,7 +1460,7 @@ memset512_nodrain_movnt(void *pmemdest, int c, size_t len)
  * common case on modern hardware that supports persistent memory.
  */
 static void *(*Func_memset_nodrain)
-	(void *pmemdest, int c, size_t len) = memset512_nodrain_movnt;
+	(void *pmemdest, int c, size_t len) = memset_nodrain_normal;
 
 /*
  * pmem_memset_nodrain -- memset to pmem without hw drain
@@ -1494,6 +1494,8 @@ static void
 pmem_log_cpuinfo(void)
 {
 	LOG(3, NULL);
+
+	(void) memset_nodrain_movnt;
 
 	if (Func_flush == flush_clwb)
 		LOG(3, "using clwb");
