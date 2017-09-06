@@ -68,6 +68,8 @@ DEFAULT_CFLAGS += -Wmissing-variable-declarations
 endif
 endif
 
+CFLAGS += -mavx512f
+
 ifeq ($(DEBUG),1)
 # Undefine _FORTIFY_SOURCE in case it's set in system-default or
 # user-defined CFLAGS as it conflicts with -O0.
