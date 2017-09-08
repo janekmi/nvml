@@ -620,7 +620,12 @@ pmembench_init_workers(struct benchmark_worker **workers, size_t nworkers,
 				cpu = (int)i;
 			}
 
-			cpu %= ncpus;
+			/*
+			 * Assign threads to every other CPU. Populate all
+			 * available even CPUs first and odd afterwards.
+			 * Wrap-around after populating all available CPUs.
+			 */
+			cpu %= (ncpus / 2);
 			os_cpu_zero(&cpuset);
 			os_cpu_set(cpu, &cpuset);
 			errno = os_thread_setaffinity_np(&workers[i]->thread,
