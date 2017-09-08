@@ -539,9 +539,10 @@ pmembench_init_workers(struct benchmark_worker **workers, size_t nworkers,
 			 * available even CPUs first and odd afterwards.
 			 * Wrap-around after populating all available CPUs.
 			 */
-			int cpu =
-				((2 * i) + ((long)(i % ncpus) >= (ncpus / 2))) %
-				ncpus;
+//			int cpu =
+//				((2 * i) + ((long)(i % ncpus) >= (ncpus / 2))) %
+//				ncpus;
+			int cpu = i % (ncpus / 2);
 			os_cpu_set(cpu, &cpuset);
 			errno = os_thread_setaffinity_np(workers[i]->thread,
 							 sizeof(os_cpu_set_t),
