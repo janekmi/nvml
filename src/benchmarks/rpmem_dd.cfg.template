@@ -4,6 +4,7 @@ group = rpmem
 file = /home/nesperf/poolset-dir/poolset.dd
 ops-per-thread = $OPS_PER_THREAD
 no-memset = $NO_MEMSET
+min-exe-time = $MIN_EXE_TIME
 
 [rpmem_persist_DS$DATA_SIZE]
 bench = rpmem_persist
