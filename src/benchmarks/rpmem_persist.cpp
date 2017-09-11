@@ -61,11 +61,12 @@
  * rpmem_args -- benchmark specific command line options
  */
 struct rpmem_args {
-	char *mode;	/* operation mode: stat, seq, rand */
-	bool no_warmup;    /* do not do warmup */
-	bool no_memset;    /* do not call memset before each persist */
-	size_t chunk_size; /* elementary chunk size */
-	size_t dest_off;   /* destination address offset */
+	char *mode;		/* operation mode: stat, seq, rand */
+	bool no_warmup;		/* do not do warmup */
+	bool no_memset;		/* do not call memset before each persist */
+	bool no_replication;	/* do not call rpmem_persist */
+	size_t chunk_size;	/* elementary chunk size */
+	size_t dest_off;	/* destination address offset */
 };
 
 /*
@@ -223,16 +224,18 @@ rpmem_op(struct benchmark *bench, struct operation_info *info)
 		memset(dest, c, len);
 	}
 
-	int ret = 0;
-	for (unsigned r = 0; r < mb->nreplicas; ++r) {
-		assert(info->worker->index < mb->nlanes[r]);
+	if (!mb->pargs->no_replication) {
+		int ret = 0;
+		for (unsigned r = 0; r < mb->nreplicas; ++r) {
+			assert(info->worker->index < mb->nlanes[r]);
 
-		ret = rpmem_persist(mb->rpp[r], offset, len,
-				    info->worker->index);
-		if (ret) {
-			fprintf(stderr, "rpmem_persist replica #%u: %s\n", r,
-				rpmem_errormsg());
-			return ret;
+			ret = rpmem_persist(mb->rpp[r], offset, len,
+					    info->worker->index);
+			if (ret) {
+				fprintf(stderr, "rpmem_persist replica #%u: "
+					"%s\n", r, rpmem_errormsg());
+				return ret;
+			}
 		}
 	}
 
@@ -513,7 +516,7 @@ rpmem_exit(struct benchmark *bench, struct benchmark_args *args)
 	return 0;
 }
 
-static struct benchmark_clo rpmem_clo[4];
+static struct benchmark_clo rpmem_clo[5];
 /* Stores information about benchmark. */
 static struct benchmark_info rpmem_info;
 CONSTRUCTOR(rpmem_persist_costructor)
@@ -555,6 +558,13 @@ pmem_rpmem_persist(void)
 	rpmem_clo[3].def = "false";
 	rpmem_clo[3].off = clo_field_offset(struct rpmem_args, no_memset);
 	rpmem_clo[3].type = CLO_TYPE_FLAG;
+
+	rpmem_clo[4].opt_short = 'R';
+	rpmem_clo[4].opt_long = "no-replication";
+	rpmem_clo[4].descr = "Don't call rpmem_persist";
+	rpmem_clo[4].def = "false";
+	rpmem_clo[4].off = clo_field_offset(struct rpmem_args, no_replication);
+	rpmem_clo[4].type = CLO_TYPE_FLAG;
 
 	rpmem_info.name = "rpmem_persist";
 	rpmem_info.brief = "Benchmark for rpmem_persist() "
