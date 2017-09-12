@@ -6,6 +6,7 @@ ops-per-thread = $OPS_PER_THREAD
 no-memset = $NO_MEMSET
 min-exe-time = $MIN_EXE_TIME
 thread-affinity = $AFFINITY
+no-replication = $NO_REPLICATION
 
 [rpmem_persist_DS$DATA_SIZE]
 bench = rpmem_persist
