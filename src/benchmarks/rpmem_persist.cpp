@@ -226,7 +226,7 @@ rpmem_op(struct benchmark *bench, struct operation_info *info)
 		/* thread id on MS 4 bits and operation id on LS 4 bits */
 		int c = ((info->worker->index & 0xf) << 4) +
 			((0xf & info->index));
-		memset(dest, c, len);
+		pmem_memset_persist(dest, c, len);
 	}
 
 	if (!mb->pargs->no_replication) {
