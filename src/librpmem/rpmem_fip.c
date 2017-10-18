@@ -679,6 +679,7 @@ static int
 rpmem_fip_persist_apm(struct rpmem_fip *fip, size_t offset,
 	size_t len, unsigned lane)
 {
+	static unsigned i = 0;
 	struct rpmem_fip_plane_apm *lanep = &fip->lanes[lane].apm;
 
 	int ret;
@@ -697,7 +698,9 @@ rpmem_fip_persist_apm(struct rpmem_fip *fip, size_t offset,
 
 	/* READ to read-after-write buffer */
 	ret = rpmem_fip_readmsg(lanep->base.ep, &lanep->read, fip->raw_buff,
-			RPMEM_RAW_SIZE, fip->raddr+4096);
+			RPMEM_RAW_SIZE, fip->raddr + 4096 + i*4096);
+	i = (i + 1) % 2;
+
 	if (unlikely(ret)) {
 		RPMEM_FI_ERR(ret, "RMA read");
 		return ret;
