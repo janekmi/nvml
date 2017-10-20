@@ -70,6 +70,7 @@ my $usage =
 		allow a comma-seperated list of optional constructs:
 		    doxygen	allow doxygen-style block comments (/** /*!)
 		    splint	allow splint-style lint comments (/*@ ... @*/)
+		    syslogsafe	do not allow tabs in strings (\" ... \\t ... \")
 ";
 
 my %opts;
@@ -88,7 +89,7 @@ my $check_posix_types = $opts{'P'};
 
 my $doxygen_comments = 0;
 my $splint_comments = 0;
-my $librpmem_strings = 0;
+my $syslogsafe_strings = 0;
 
 if (defined($opts{'o'})) {
 	for my $x (split /,/, $opts{'o'}) {
@@ -96,8 +97,8 @@ if (defined($opts{'o'})) {
 			$doxygen_comments = 1;
 		} elsif ($x eq "splint") {
 			$splint_comments = 1;
-		} elsif ($x eq "librpmem") {
-			$librpmem_strings = 1;
+		} elsif ($x eq "syslogsafe") {
+			$syslogsafe_strings = 1;
 		} else {
 			print "cstyle: unrecognized construct \"$x\"\n";
 			print $usage;
@@ -268,10 +269,12 @@ line: while (<$filehandle>) {
 	#
 	$_ = '"' . $_		if ($in_string && !$nocheck && !$in_comment);
 
-	if (/"(\\t)"/) {
-		err("tab in string");
+	if($syslogsafe_strings) {
+		if (/"[^\\"]*\\t.*"/) {
+			err("tabs in string");
+		}
 	}
-	
+
 	#
 	# normal strings and characters
 	#

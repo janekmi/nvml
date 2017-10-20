@@ -124,6 +124,7 @@ export docdir := $(datarootdir)/doc
 export man1dir := $(mandir)/man1
 export man3dir := $(mandir)/man3
 export cstyle_bin := $(CSTYLE)
+export cstyle_constructs := 
 export clang_format_bin := $(CLANG_FORMAT)
 
 ifneq ($(wildcard $(exec_prefix)/x86_64-linux-gnu),)

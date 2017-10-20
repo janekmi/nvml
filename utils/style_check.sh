@@ -70,7 +70,14 @@ function run_cstyle() {
 		return
 	fi
 
-	${cstyle_bin} -pP $@
+	CMD="${cstyle_bin} -pP"
+	if [ -n "$cstyle_constructs" ]; then
+		CMD="$CMD -o $cstyle_constructs"
+	fi
+	CMD="$CMD $@"
+
+	echo "$CMD"
+	${CMD}
 }
 
 #
