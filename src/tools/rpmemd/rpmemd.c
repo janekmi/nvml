@@ -234,7 +234,7 @@ err_fip_init:
 static void
 rpmemd_print_req_attr(const struct rpmem_req_attr *req)
 {
-	RPMEMD_LOG(NOTICE, RPMEMD_LOG_INDENT "pool descriptor: '%s'",
+	RPMEMD_LOG(NOTICE, "\tpool descriptor: '%s'",
 			_str(req->pool_desc));
 	RPMEMD_LOG(NOTICE, RPMEMD_LOG_INDENT "pool size: %lu", req->pool_size);
 	RPMEMD_LOG(NOTICE, RPMEMD_LOG_INDENT "nlanes: %u", req->nlanes);

@@ -62,12 +62,7 @@ CFLAGS += $(shell $(PKG_CONFIG) --cflags libfabric)
 LIBS += $(shell $(PKG_CONFIG) --libs libfabric)
 
 INSTALL_TARGET=y
-
-ifneq ($(cstyle_constructs),)
-export cstyle_constructs := $(cstyle_constructs),syslogsafe
-else
-export cstyle_constructs := syslogsafe
-endif
+CSTYLE_SYSLOGSAFE=y
 
 else
 $(info NOTE: Skipping rpmemd because $(BUILD_RPMEM_INFO))

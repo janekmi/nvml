@@ -196,6 +196,10 @@ TMP_HEADERS := $(addsuffix tmp, $(HEADERS))
 endif
 endif
 
+ifeq ($(CSTYLE_SYSLOGSAFE), y)
+$(call cstyle_add_construct syslogsafe)
+endif
+
 ifeq ($(COVERAGE),1)
 CFLAGS += $(GCOV_CFLAGS)
 LDFLAGS += $(GCOV_LDFLAGS)

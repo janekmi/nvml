@@ -124,8 +124,12 @@ export docdir := $(datarootdir)/doc
 export man1dir := $(mandir)/man1
 export man3dir := $(mandir)/man3
 export cstyle_bin := $(CSTYLE)
-export cstyle_constructs := 
+export cstyle_constructs :=
 export clang_format_bin := $(CLANG_FORMAT)
+
+cstyle_add_construct = $(shell export cstyle_constructs = \
+	[ -n ${cstyle_constructs} ] && "$cstyle_constructs,$(1)" || $(1))
+
 
 ifneq ($(wildcard $(exec_prefix)/x86_64-linux-gnu),)
 LIB_PREFIX ?= x86_64-linux-gnu/lib
