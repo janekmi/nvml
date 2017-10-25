@@ -98,6 +98,8 @@ enum operation_mode {
 	OP_MODE_RAND,      /* use random chunks */
 	OP_MODE_SEQ_WRAP,  /* use consequtive chunks, but use file size */
 	OP_MODE_RAND_WRAP, /* use random chunks, but use file size */
+	/* use random interlaced chunks, but use file size */
+	OP_MODE_RAND_INTERLACED_WRAP,
 };
 
 /*
@@ -116,6 +118,8 @@ parse_op_mode(const char *arg)
 		return OP_MODE_SEQ_WRAP;
 	else if (strcmp(arg, "rand-wrap") == 0)
 		return OP_MODE_RAND_WRAP;
+	else if (strcmp(arg, "rand-int-wrap") == 0)
+		return OP_MODE_RAND_INTERLACED_WRAP;
 	else
 		return OP_MODE_UNKNOWN;
 }
@@ -164,6 +168,11 @@ init_offsets(struct benchmark_args *args, struct rpmem_bench *mb,
 					chunk_idx = i * n_ops_by_size +
 						os_rand_r(&seed) %
 							n_ops_by_size;
+					break;
+				case OP_MODE_RAND_INTERLACED_WRAP:
+					chunk_idx = i * n_ops_by_size +
+						(os_rand_r(&seed) * 2 + j % 2) %
+						n_ops_by_size;
 					break;
 				default:
 					assert(0);
