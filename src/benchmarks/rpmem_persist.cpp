@@ -446,6 +446,7 @@ rpmem_set_min_size(struct rpmem_bench *mb, enum operation_mode op_mode,
 			break;
 		case OP_MODE_SEQ_WRAP:
 		case OP_MODE_RAND_WRAP:
+		case OP_MODE_RAND_INTERLACED_WRAP:
 			/*
 			 * at least one chunk per thread to avoid false sharing
 			 */
