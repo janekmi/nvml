@@ -49,7 +49,7 @@
 #define RPMEM_PROV_SIZE		32
 #define RPMEM_USER_SIZE		16
 
-#define MAX_QFM_DATA_SIZE       4096
+#define MAX_QFM_DATA_SIZE       8192
 
 /*
  * rpmem_msg_type -- type of messages
