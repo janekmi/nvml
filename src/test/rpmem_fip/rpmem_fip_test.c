@@ -62,6 +62,9 @@
 #define TOTAL_PER_LANE	(SIZE_PER_LANE * COUNT_PER_LANE)
 #define POOL_SIZE	(NLANES * TOTAL_PER_LANE)
 
+/* Mock just to make end successfully */
+int Rpmem_assert_align;
+
 uint8_t lpool[POOL_SIZE];
 uint8_t rpool[POOL_SIZE];
 

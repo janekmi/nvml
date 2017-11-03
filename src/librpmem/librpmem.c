@@ -45,8 +45,10 @@
 #include "rpmem_fip.h"
 #include "util.h"
 #include "out.h"
+#include "os.h"
 
 extern int Rpmem_fork_unsafe;
+extern int Rpmem_assert_align;
 
 /*
  * librpmem_init -- load-time initialization for librpmem
@@ -66,6 +68,11 @@ librpmem_init(void)
 	rpmem_fip_probe_fork_safety(&Rpmem_fork_unsafe);
 	RPMEM_LOG(NOTICE, "Libfabric is %sfork safe",
 		Rpmem_fork_unsafe ? "not " : "");
+
+	const char *assert_align = os_getenv(RPMEM_ASSERT_ALIGN_VAR);
+	if (assert_align) {
+		Rpmem_assert_align = atoi(assert_align);
+	}
 }
 
 /*

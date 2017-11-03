@@ -36,6 +36,17 @@
 
 #include <rdma/fi_rma.h>
 
+#ifdef RPMEM_ASSERT
+
+#define RPMEM_ADDRESS_ALIGNMENT (4 * 1024)
+
+#define RPMEM_ASSERT_ALIGN(ADDR) \
+	RPMEM_ASSERT(((uintptr_t)(const void *)(ADDR)) % RPMEM_ADDRESS_ALIGNMENT == 0)
+
+extern int Rpmem_assert_align;
+
+#endif
+
 /*
  * rpmem_fip_rma -- helper struct for RMA operation
  */
@@ -103,6 +114,13 @@ static inline int
 rpmem_fip_writemsg(struct fid_ep *ep, struct rpmem_fip_rma *rma,
 	const void *buff, size_t len, uint64_t addr)
 {
+#ifdef RPMEM_ASSERT
+	if (unlikely(Rpmem_assert_align)) {
+		RPMEM_ASSERT_ALIGN(buff);
+		RPMEM_ASSERT_ALIGN(addr);
+	}
+#endif
+
 	rma->rma_iov.addr = addr;
 	rma->rma_iov.len = len;
 	rma->msg_iov.iov_base = (void *)buff;
@@ -117,6 +135,13 @@ static inline int
 rpmem_fip_readmsg(struct fid_ep *ep, struct rpmem_fip_rma *rma,
 	void *buff, size_t len, uint64_t addr)
 {
+#ifdef RPMEM_ASSERT
+	if (unlikely(Rpmem_assert_align)) {
+		RPMEM_ASSERT_ALIGN(buff);
+		RPMEM_ASSERT_ALIGN(addr);
+	}
+#endif
+
 	rma->rma_iov.addr = addr;
 	rma->rma_iov.len = len;
 	rma->msg_iov.iov_base = buff;

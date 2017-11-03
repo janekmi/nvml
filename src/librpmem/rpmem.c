@@ -58,6 +58,7 @@
 )
 
 extern int Rpmem_fork_unsafe;
+extern int Rpmem_assert_align;
 
 /*
  * If set, indicates libfabric does not support fork() and consecutive calls to
@@ -71,6 +72,11 @@ if (Rpmem_fork_unsafe) {\
 	return NULL;\
 }\
 } while (0)
+
+/*
+ * If set, all addresses passed to libfabric have to be aligned
+ */
+int Rpmem_assert_align;
 
 /*
  * rpmem_pool -- remote pool context
