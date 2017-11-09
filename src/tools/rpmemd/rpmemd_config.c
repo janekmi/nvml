@@ -70,12 +70,13 @@ enum rpmemd_option {
 	RPD_OPT_USE_SYSLOG,
 	RPD_OPT_LOG_LEVEL,
 	RPD_OPT_RM_POOLSET,
+        RPD_MAX_FLUSHING_THREADS,
 
 	RPD_OPT_MAX_VALUE,
 	RPD_OPT_INVALID			= UINT64_MAX,
 };
 
-static const char *optstr = "c:hVr:fs";
+static const char *optstr = "c:hVr:fsm";
 
 /*
  * options -- cl and config file options
@@ -94,6 +95,7 @@ static const struct option options[] = {
 {"remove",		required_argument,	NULL, 'r'},
 {"force",		no_argument,		NULL, 'f'},
 {"pool-set",		no_argument,		NULL, 's'},
+{"max-flush-threads",		required_argument,		NULL, RPD_MAX_FLUSHING_THREADS},
 {NULL,			0,			NULL,  0},
 };
 
@@ -113,6 +115,7 @@ static const char *help_str =
 "      --persist-general         enable General Server Persistency Mechanism\n"
 "      --persist-qfm             enable QoS Fix Persistency Mechanism\n"
 "      --use-syslog              use syslog(3) for logging messages\n"
+"      --max-flush-threads <threads>       maximum number of threads flushing cache in parallel in GPSPM\n"
 "      --log-level <level>       set log level value\n"
 VALUE_INDENT "err     error conditions\n"
 VALUE_INDENT "warn    warning conditions\n"
@@ -192,6 +195,7 @@ set_option(enum rpmemd_option option, const char *value,
 	struct rpmemd_config *config)
 {
 	errno = 0;
+	int i;
 
 	switch (option) {
 	case RPD_OPT_LOG_FILE:
@@ -220,6 +224,14 @@ set_option(enum rpmemd_option option, const char *value,
 		if (config->log_level == MAX_RPD_LOG)
 			errno = EINVAL;
 		break;
+	case RPD_MAX_FLUSHING_THREADS:
+	       i = atoi(value);
+	       if ((i<=0)|| (i>255))
+		   errno = EINVAL;
+	       else
+		 config->max_flushing_threads = (uint8_t)i;
+
+	       break;
 	default:
 		errno = EINVAL;
 	}
@@ -583,6 +595,7 @@ config_set_default(struct rpmemd_config *config, const char *poolset_dir)
 	config->log_level	= RPD_LOG_ERR;
 	config->rm_poolset	= NULL;
 	config->force		= false;
+	config->max_flushing_threads = RPMEM_DEFAULT_MAX_FLUSH_THREADS;
 }
 
 /*

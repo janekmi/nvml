@@ -50,6 +50,8 @@
 
 #define RPMEM_DEFAULT_MAX_LANES	1024
 
+#define RPMEM_DEFAULT_MAX_FLUSH_THREADS 0
+
 #define HOME_ENV "HOME"
 
 #define HOME_STR_PLACEHOLDER ("$" HOME_ENV)
@@ -64,6 +66,7 @@ struct rpmemd_config {
 	bool persist_general;
 	bool persist_qfm;
 	bool use_syslog;
+        uint8_t max_flushing_threads;
 	uint64_t max_lanes;
 	enum rpmemd_log_level log_level;
 };

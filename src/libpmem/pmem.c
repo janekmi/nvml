@@ -987,6 +987,7 @@ memmove_nodrain_movnt(void *pmemdest, const void *src, size_t len)
 #include <emmintrin.h>
 #include <immintrin.h>
 
+#ifdef USE_AVX_512
 /*
  * memmove512_nodrain_movnt -- (internal) memmove to pmem without hw drain, movnt
  */
@@ -1210,6 +1211,7 @@ memmove512_nodrain_movnt(void *pmemdest, const void *src, size_t len)
 
 	return pmemdest;
 }
+#endif /* USE_AVX_512 */ 
 
 /*
  * pmem_memmove_nodrain() calls through Func_memmove_nodrain to do the work.
@@ -1374,6 +1376,7 @@ memset_nodrain_movnt(void *pmemdest, int c, size_t len)
 	return pmemdest;
 }
 
+#ifdef USE_AVX_512
 
 /*
  * memset512_nodrain_movnt -- (internal) memset to pmem without hw drain, movnt
@@ -1467,6 +1470,8 @@ memset512_nodrain_movnt(void *pmemdest, int c, size_t len)
 	return pmemdest;
 }
 
+#endif /* USE_AVX_512 */
+
 /*
  * pmem_memset_nodrain() calls through Func_memset_nodrain to do the work.
  * Although initialized to memset_nodrain_normal(), once the existence of the
@@ -1527,8 +1532,10 @@ pmem_log_cpuinfo(void)
 		LOG(3, "using movnt");
 	else if (Func_memmove_nodrain == memmove_nodrain_normal)
 		LOG(3, "not using movnt");
+#ifdef USE_AVX_512
 	else if (Func_memmove_nodrain == memmove512_nodrain_movnt)
 		LOG(3, "using movnt512");
+#endif 
 	else
 		FATAL("invalid memove_nodrain function address");
 }
@@ -1606,6 +1613,8 @@ pmem_init(void)
 		}
 	}
 
+#ifdef USE_AVX_512
+
 	ptr = os_getenv("PMEM_NO_MOVNT");
 	if (ptr && strcmp(ptr, "1") == 0)
 		LOG(3, "PMEM_NO_MOVNT forced no movnt");
@@ -1613,6 +1622,7 @@ pmem_init(void)
 		Func_memmove_nodrain = memmove512_nodrain_movnt;
 		Func_memset_nodrain = memset512_nodrain_movnt;
 	}
+#endif /* USE_AVX_512 */
 
 	pmem_log_cpuinfo();
 

@@ -47,6 +47,8 @@
 #include <rdma/fi_endpoint.h>
 #include <rdma/fi_cm.h>
 #include <rdma/fi_errno.h>
+#include <semaphore.h>
+#include <errno.h>
 
 #include "libpmem.h"
 #include "rpmemd_log.h"
@@ -159,6 +161,8 @@ struct rpmemd_fip {
 	void *pres_mr_desc;		/* persist response local descriptor */
 
 	struct rpmemd_fip_worker *workers;	/* process workers */
+        uint8_t max_flushing_threads;
+        sem_t flushing_sem; /* Sempahore limiting number of flushing threads */
 };
 
 /*
@@ -676,7 +680,12 @@ rpmemd_fip_init_gpspm(struct rpmemd_fip *fip)
 				FI_COMPLETION);
 	}
 
-	return 0;
+	if( fip->max_flushing_threads )
+	 {
+	    if (sem_init(&fip->flushing_sem, 0, fip->max_flushing_threads))
+
+	      return 0;
+	  }
 err_mr_reg_msg_resp:
 	free(fip->pres);
 err_msg_resp_malloc:
@@ -897,7 +906,29 @@ rpmemd_fip_process_one(struct rpmemd_fip *fip, struct rpmemd_fip_lane *lanep)
 	 * We could issue flush operation, do some other work like
 	 * posting RECV buffer and then call drain. Need to consider this.
 	 */
+
+
+	if( fip->max_flushing_threads == 0)
+	  fip->persist((void *)pmsg->addr, pmsg->size);
+	else
+	  {
+
+	    do
+	      {
+		ret = sem_trywait(&fip->flushing_sem);
+	      }
+	    while(ret == -1 && errno == EAGAIN);
+
+	    if(!ret)
+	      { 
 		fip->persist((void *)pmsg->addr, pmsg->size);
+	      }
+	    else
+	      goto err;
+	    
+	    sem_post(&fip->flushing_sem);
+	  }
+
 	}
 
 	/* post lane's RECV buffer */
@@ -1105,6 +1136,7 @@ rpmemd_fip_set_attr(struct rpmemd_fip *fip, struct rpmemd_fip_attr *attr)
 
 	RPMEMD_ASSERT(fip->persist_method < MAX_RPMEM_PM);
 	fip->ops = &rpmemd_fip_ops[fip->persist_method];
+	fip->max_flushing_threads = attr->max_flushing_threads;
 }
 
 /*
@@ -1173,6 +1205,8 @@ rpmemd_fip_init(const char *node, const char *service,
 		*err = RPMEM_ERR_FATAL;
 		goto err_set_resp;
 	}
+
+	
 
 	return fip;
 err_set_resp:
