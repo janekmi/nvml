@@ -46,6 +46,7 @@ struct rpmemd_fip_attr {
 	enum rpmem_provider provider;
 	enum rpmem_persist_method persist_method;
 	int (*persist)(const void *addr, size_t len);
+        uint8_t max_flushing_threads;
 };
 
 struct rpmemd_fip *rpmemd_fip_init(const char *node,

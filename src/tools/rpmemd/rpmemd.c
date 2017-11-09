@@ -208,6 +208,7 @@ rpmemd_common_fip_init(struct rpmemd *rpmemd, const struct rpmem_req_attr *req,
 		.nthreads	= rpmemd->nthreads,
 		.provider	= req->provider,
 		.persist_method = rpmemd->persist_method,
+		.max_flushing_threads = rpmemd->config.max_flushing_threads,
 	};
 
 	const int is_pmem = rpmemd_db_pool_is_pmem(rpmemd->pool);

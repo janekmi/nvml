@@ -67,9 +67,9 @@ ifeq ($(call check_flag, -Wmissing-variable-declarations), y)
 DEFAULT_CFLAGS += -Wmissing-variable-declarations
 endif
 endif
-CFLAGS += -mavx512f
+#CFLAGS += -mavx512f
 
-CFLAGS += -mavx512f
+#CFLAGS += -mavx512f
 
 ifeq ($(DEBUG),1)
 # Undefine _FORTIFY_SOURCE in case it's set in system-default or
