@@ -43,6 +43,7 @@
 #include <fcntl.h>
 #include <sys/file.h>
 #include <sys/mman.h>
+#include <semaphore.h>
 #include <unistd.h>
 
 #include "benchmark.hpp"
@@ -67,6 +68,7 @@ struct rpmem_args {
 	bool no_replication;	/* do not call rpmem_persist */
 	size_t chunk_size;	/* elementary chunk size */
 	size_t dest_off;	/* destination address offset */
+	unsigned max_memset_th;	/* maximum number of threads doing memset */
 };
 
 /*
@@ -86,6 +88,7 @@ struct rpmem_bench {
 	unsigned *nlanes;	 /* number of lanes for each remote replica */
 	unsigned nreplicas;       /* number of remote replicas */
 	size_t csize_align;       /* aligned elementary chunk size */
+	sem_t memset_sem;	/* limit number of threads doing memset*/
 };
 
 /*
@@ -230,7 +233,24 @@ rpmem_op(struct benchmark *bench, struct operation_info *info)
 		/* thread id on MS 4 bits and operation id on LS 4 bits */
 		int c = ((info->worker->index & 0xf) << 4) +
 			((0xf & info->index));
-		pmem_memset_persist(dest, c, len);
+
+		if (mb->pargs->max_memset_th == 0) {
+			pmem_memset_persist(dest, c, len);
+		} else {
+			int ret;
+			do
+			{
+				ret = sem_trywait(&mb->memset_sem);
+			} while(ret == -1 && errno == EAGAIN);
+
+			if (!ret) {
+				pmem_memset_persist(dest, c, len);
+				sem_post(&mb->memset_sem);
+			} else {
+				fprintf(stderr, "rpmem_persist sem_trywait: "
+					"%s\n", strerror(errno));
+			}
+		}
 	}
 
 	if (!mb->pargs->no_replication) {
@@ -499,6 +519,10 @@ rpmem_init(struct benchmark *bench, struct benchmark_args *args)
 		}
 	}
 
+	if (mb->pargs->max_memset_th > 0) {
+		sem_init(&mb->memset_sem, 0, mb->pargs->max_memset_th);
+	}
+
 	pmembench_set_priv(bench, mb);
 
 	return 0;
@@ -521,12 +545,17 @@ rpmem_exit(struct benchmark *bench, struct benchmark_args *args)
 	struct rpmem_bench *mb =
 		(struct rpmem_bench *)pmembench_get_priv(bench);
 	rpmem_poolset_fini(mb);
+
+	if (mb->pargs->max_memset_th > 0) {
+		sem_destroy(&mb->memset_sem);
+	}
+
 	free(mb->offsets);
 	free(mb);
 	return 0;
 }
 
-static struct benchmark_clo rpmem_clo[5];
+static struct benchmark_clo rpmem_clo[6];
 /* Stores information about benchmark. */
 static struct benchmark_info rpmem_info;
 CONSTRUCTOR(rpmem_persist_costructor)
@@ -575,6 +604,18 @@ pmem_rpmem_persist(void)
 	rpmem_clo[4].def = "false";
 	rpmem_clo[4].off = clo_field_offset(struct rpmem_args, no_replication);
 	rpmem_clo[4].type = CLO_TYPE_FLAG;
+
+	rpmem_clo[5].opt_short = 0;
+	rpmem_clo[5].opt_long = "max-memset-threads";
+	rpmem_clo[5].descr = "Maximum number of threads doing memset";
+	rpmem_clo[5].def = "0";
+	rpmem_clo[5].off = clo_field_offset(struct rpmem_args, max_memset_th);
+	rpmem_clo[5].type = CLO_TYPE_UINT;
+	rpmem_clo[5].type_uint.size =
+		clo_field_size(struct rpmem_args, max_memset_th);
+	rpmem_clo[5].type_uint.base = CLO_INT_BASE_DEC;
+	rpmem_clo[5].type_uint.min = 0;
+	rpmem_clo[5].type_uint.max = UINT_MAX;
 
 	rpmem_info.name = "rpmem_persist";
 	rpmem_info.brief = "Benchmark for rpmem_persist() "
