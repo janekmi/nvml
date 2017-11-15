@@ -707,6 +707,10 @@ rpmemd_fip_fini_gpspm(struct rpmemd_fip *fip)
 	int lret = 0;
 	int ret;
 
+	if (fip->max_flushing_threads) {
+		sem_destroy(&fip->flushing_sem);
+	}
+
 	ret = RPMEMD_FI_CLOSE(fip->pmsg_mr,
 			"unregistering GPSPM messages buffer");
 	if (ret)
