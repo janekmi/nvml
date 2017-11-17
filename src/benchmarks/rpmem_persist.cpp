@@ -69,6 +69,26 @@ struct rpmem_args {
 	size_t chunk_size;	/* elementary chunk size */
 	size_t dest_off;	/* destination address offset */
 	unsigned max_memset_th;	/* maximum number of threads doing memset */
+	char *master_source;	/* master source: from-file, from-memory */
+};
+
+/*
+ * replica_source -- replica source
+ */
+enum replica_source {
+	REPLICA_SOURCE_UNKNOWN,
+	REPLICA_FROM_FILE,	/* as described in poolset file */
+	REPLICA_FROM_MEMORY	/* allocated aligned memory */
+};
+
+/*
+ * local_replica -- replica description
+ */
+struct local_replica {
+	enum replica_source source;
+	void *addrp;		/* memory file address */
+	void *pool;		/* memory pool address */
+	size_t mapped_len;	/* mapped len */
 };
 
 /*
@@ -80,15 +100,15 @@ struct rpmem_bench {
 	size_t n_offsets;	 /* number of random elements */
 	int const_b;		  /* memset() value */
 	size_t min_size;	  /* minimum file size */
-	void *addrp;		  /* mapped file address */
-	void *pool;		  /* memory pool address */
+	struct local_replica master; /* master replica */
 	size_t pool_size;	 /* size of memory pool */
-	size_t mapped_len;	/* mapped length */
 	RPMEMpool **rpp;	  /* rpmem pool pointers */
 	unsigned *nlanes;	 /* number of lanes for each remote replica */
-	unsigned nreplicas;       /* number of remote replicas */
+	unsigned remote_num;       /* number of remote replicas */
 	size_t csize_align;       /* aligned elementary chunk size */
 	sem_t memset_sem;	/* limit number of threads doing memset*/
+	unsigned local_num;	/* number of local replicas */
+	struct local_replica *local; /* local replicas */
 };
 
 /*
@@ -128,14 +148,28 @@ parse_op_mode(const char *arg)
 }
 
 /*
+ * parse_replica_source -- parse replica source
+ */
+static enum replica_source
+parse_replica_source(const char *arg)
+{
+	if (strcmp(arg, "from-file") == 0)
+		return REPLICA_FROM_FILE;
+	else if (strcmp(arg, "from-memory") == 0)
+		return REPLICA_FROM_MEMORY;
+	else
+		return REPLICA_SOURCE_UNKNOWN;
+}
+
+/*
  * init_offsets -- initialize offsets[] array depending on the selected mode
  */
 static int
 init_offsets(struct benchmark_args *args, struct rpmem_bench *mb,
 	     enum operation_mode op_mode)
 {
-	size_t n_ops_by_size = (mb->pool_size - POOL_HDR_SIZE) /
-		(args->n_threads * mb->csize_align);
+	size_t n_ops_by_size = (mb->pool_size) /
+			(args->n_threads * mb->csize_align);
 
 	mb->n_offsets = args->n_ops_per_thread * args->n_threads;
 	mb->offsets = (size_t *)malloc(mb->n_offsets * sizeof(*mb->offsets));
@@ -198,23 +232,51 @@ static int
 do_warmup(struct rpmem_bench *mb)
 {
 	/* clear the entire pool */
-	memset((char *)mb->pool + POOL_HDR_SIZE, 0,
-	       mb->pool_size - POOL_HDR_SIZE);
+	memset(mb->master.pool, 0, mb->pool_size);
 
-	for (unsigned r = 0; r < mb->nreplicas; ++r) {
-		int ret = rpmem_persist(mb->rpp[r], POOL_HDR_SIZE,
-					mb->pool_size - POOL_HDR_SIZE, 0);
+	for (unsigned i = 0; i < mb->local_num; ++i) {
+		memset(mb->local[i].pool, 0, mb->pool_size);
+	}
+
+	for (unsigned r = 0; r < mb->remote_num; ++r) {
+		int ret = rpmem_persist(mb->rpp[r], POOL_HDR_SIZE, mb->pool_size, 0);
 		if (ret)
 			return ret;
 	}
 
 	/* if no memset for each operation, do one big memset */
 	if (mb->pargs->no_memset) {
-		memset((char *)mb->pool + POOL_HDR_SIZE, 0xFF,
-		       mb->pool_size - POOL_HDR_SIZE);
+		memset(mb->master.pool, 0xFF, mb->pool_size);
+
+		for (unsigned i = 0; i < mb->local_num; ++i) {
+			memset(mb->local[i].pool, 0xFF, mb->pool_size);
+		}
 	}
 
 	return 0;
+}
+
+/*
+ * rpmem_memset_persist -- memset and persist master and local replicas
+ */
+static void
+rpmem_memset_persist(struct rpmem_bench *mb, size_t offset, int c,
+		size_t len)
+{
+	struct local_replica *replica;
+	void *src, *dest;
+
+	/* memset master replica */
+	dest = (char *)mb->master.pool + offset;
+	pmem_memset_persist(dest, c, len);
+
+	/* memcpy to local replicas */
+	src = dest;
+	for (unsigned i = 0; i < mb->local_num; ++i) {
+		replica = &mb->local[i];
+		dest = (char *)replica->pool + offset;
+		pmem_memcpy_persist(dest, src, len);
+	}
 }
 
 /*
@@ -234,13 +296,12 @@ rpmem_op(struct benchmark *bench, struct operation_info *info)
 	size_t len = mb->pargs->chunk_size;
 
 	if (!mb->pargs->no_memset) {
-		void *dest = (char *)mb->pool + offset;
 		/* thread id on MS 4 bits and operation id on LS 4 bits */
 		int c = ((info->worker->index & 0xf) << 4) +
 			((0xf & info->index));
 
 		if (mb->pargs->max_memset_th == 0) {
-			pmem_memset_persist(dest, c, len);
+			rpmem_memset_persist(mb, offset, c, len);
 		} else {
 			int ret;
 			do
@@ -249,7 +310,7 @@ rpmem_op(struct benchmark *bench, struct operation_info *info)
 			} while(ret == -1 && errno == EAGAIN);
 
 			if (!ret) {
-				pmem_memset_persist(dest, c, len);
+				rpmem_memset_persist(mb, offset, c, len);
 				sem_post(&mb->memset_sem);
 			} else {
 				fprintf(stderr, "rpmem_persist sem_trywait: "
@@ -260,7 +321,7 @@ rpmem_op(struct benchmark *bench, struct operation_info *info)
 
 	if (!mb->pargs->no_replication) {
 		int ret = 0;
-		for (unsigned r = 0; r < mb->nreplicas; ++r) {
+		for (unsigned r = 0; r < mb->remote_num; ++r) {
 			assert(info->worker->index < mb->nlanes[r]);
 
 			ret = rpmem_persist(mb->rpp[r], offset, len,
@@ -280,7 +341,7 @@ rpmem_op(struct benchmark *bench, struct operation_info *info)
  * rpmem_map_file -- map local file
  */
 static int
-rpmem_map_file(const char *path, struct rpmem_bench *mb, size_t size)
+rpmem_map_file(const char *path, struct local_replica *file, size_t size)
 {
 	int mode;
 #ifndef _WIN32
@@ -289,10 +350,10 @@ rpmem_map_file(const char *path, struct rpmem_bench *mb, size_t size)
 	mode = S_IWRITE | S_IREAD;
 #endif
 
-	mb->addrp = pmem_map_file(path, size, PMEM_FILE_CREATE, mode,
-				  &mb->mapped_len, NULL);
+	file->addrp = pmem_map_file(path, size, PMEM_FILE_CREATE, mode,
+			&file->mapped_len, NULL);
 
-	if (!mb->addrp)
+	if (!file->addrp)
 		return -1;
 
 	return 0;
@@ -302,9 +363,85 @@ rpmem_map_file(const char *path, struct rpmem_bench *mb, size_t size)
  * rpmem_unmap_file -- unmap local file
  */
 static int
-rpmem_unmap_file(struct rpmem_bench *mb)
+rpmem_unmap_file(struct local_replica *file)
 {
-	return pmem_unmap(mb->addrp, mb->mapped_len);
+	return pmem_unmap(file->addrp, file->mapped_len);
+}
+
+/*
+ * rpmem_replica_init -- initialize replica
+ */
+static int
+rpmem_replica_init(struct pool_replica *rep, enum replica_source source,
+		struct local_replica *replica)
+{
+	assert(rep->nparts == 1);
+
+	struct pool_set_part *part;
+	long long sc;
+	unsigned long alignment;
+
+	replica->source = REPLICA_SOURCE_UNKNOWN;
+
+	switch(source) {
+	case REPLICA_FROM_FILE:
+		part = (struct pool_set_part *)&rep->part[0];
+		if (rpmem_map_file(part->path, replica, rep->repsize)) {
+			perror(part->path);
+			return -1;
+		}
+		replica->pool = (void *)((uintptr_t)replica->addrp +
+				POOL_HDR_SIZE);
+		break;
+	case REPLICA_FROM_MEMORY:
+		/* obtain memory alignment */
+		sc = sysconf(_SC_PAGESIZE);
+		if (sc < 0) {
+			fprintf(stderr, "Cannot obtain sysconf(_SC_PAGESIZE): "
+					"%s\n", strerror(errno));
+			return -1;
+		}
+		alignment = (unsigned long)sc;
+		/* allocate aligned memory */
+		errno = posix_memalign(&replica->addrp, alignment, rep->repsize);
+		if (errno != 0) {
+			fprintf(stderr, "Cannot posix_memalign: %s\n",
+					strerror(errno));
+			return -1;
+		}
+		replica->pool = (void *)((uintptr_t)replica->addrp +
+				POOL_HDR_SIZE);
+		break;
+	case REPLICA_SOURCE_UNKNOWN:
+	default:
+		assert(0);
+	}
+
+	replica->source = source;
+	return 0;
+}
+
+/*
+ * rpmem_replica_fini -- finalize replica
+ */
+static int
+rpmem_replica_fini(struct local_replica *replica)
+{
+	int ret = 0;
+
+	switch(replica->source) {
+	case REPLICA_FROM_FILE:
+		ret = rpmem_unmap_file(replica);
+		break;
+	case REPLICA_FROM_MEMORY:
+		free(replica->addrp);
+	case REPLICA_SOURCE_UNKNOWN:
+	default:
+		;
+	}
+
+	replica->source = REPLICA_SOURCE_UNKNOWN;
+	return ret;
 }
 
 /*
@@ -317,7 +454,6 @@ rpmem_poolset_init(const char *path, struct rpmem_bench *mb,
 	struct pool_set *set;
 	struct pool_replica *rep;
 	struct remote_replica *remote;
-	struct pool_set_part *part;
 
 	struct rpmem_pool_attr attr;
 	memset(&attr, 0, sizeof(attr));
@@ -340,12 +476,31 @@ rpmem_poolset_init(const char *path, struct rpmem_bench *mb,
 		goto err_poolset_free;
 	}
 
+	if (set->poolsize < mb->min_size) {
+		fprintf(stderr, "Poolset effective size is too small "
+				"(%zu < %zu)\n", set->poolsize, mb->min_size);
+		goto err_poolset_free;
+	}
+
+	mb->local_num = 0;
+	mb->remote_num = 0;
 	for (unsigned i = 1; i < set->nreplicas; ++i) {
-		if (!set->replica[i]->remote) {
-			fprintf(stderr, "Local replicas are not supported\n");
-			goto err_poolset_free;
+		rep = set->replica[i];
+		assert(rep);
+
+		if (!rep->remote) {
+			if (rep->nparts != 1) {
+				fprintf(stderr, "replica %u: Multipart "
+					"replicas are not supported\n", i);
+				goto err_poolset_free;
+			}
+			++mb->local_num;
+		} else {
+			++mb->remote_num;
 		}
 	}
+
+	mb->pool_size = set->poolsize - POOL_HDR_SIZE;
 
 	/* read and validate master replica */
 	rep = set->replica[0];
@@ -353,65 +508,73 @@ rpmem_poolset_init(const char *path, struct rpmem_bench *mb,
 	assert(rep);
 	assert(rep->remote == NULL);
 	if (rep->nparts != 1) {
-		fprintf(stderr, "Multipart master replicas "
-				"are not supported\n");
+		fprintf(stderr, "Multipart master replicas are not supported\n");
 		goto err_poolset_free;
 	}
 
-	if (rep->repsize < mb->min_size) {
-		fprintf(stderr, "A master replica is too small (%zu < %zu)\n",
-			rep->repsize, mb->min_size);
+	if (rpmem_replica_init(rep, mb->master.source, &mb->master)) {
 		goto err_poolset_free;
 	}
 
-	part = (struct pool_set_part *)&rep->part[0];
-	if (rpmem_map_file(part->path, mb, rep->repsize)) {
-		perror(part->path);
-		goto err_poolset_free;
-	}
+	/* prepare local replicas */
+	if (mb->local_num > 0) {
+		mb->local = (struct local_replica *)calloc(mb->local_num,
+				sizeof(struct local_replica));
+		for (unsigned i = 1, idx = 0; i < set->nreplicas; ++i) {
+			rep = set->replica[i];
+			if (rep->remote != 0) {
+				continue;
+			}
 
-	mb->pool_size = mb->mapped_len;
-	mb->pool = (void *)((uintptr_t)mb->addrp);
+			if (rpmem_replica_init(rep, REPLICA_FROM_FILE,
+					&mb->local[idx])) {
+				goto err_free_local;
+			}
+
+			++idx;
+		}
+	}
 
 	/* prepare remote replicas */
-	mb->nreplicas = set->nreplicas - 1;
-	mb->nlanes = (unsigned *)malloc(mb->nreplicas * sizeof(unsigned));
+	mb->nlanes = (unsigned *)malloc(mb->remote_num * sizeof(unsigned));
 	if (mb->nlanes == NULL) {
 		perror("malloc");
-		goto err_unmap_file;
+		goto err_free_local;
 	}
 
-	mb->rpp = (RPMEMpool **)malloc(mb->nreplicas * sizeof(RPMEMpool *));
+	mb->rpp = (RPMEMpool **)malloc(mb->remote_num * sizeof(RPMEMpool *));
 	if (mb->rpp == NULL) {
 		perror("malloc");
 		goto err_free_lanes;
 	}
 
-	unsigned r;
-	for (r = 0; r < mb->nreplicas; ++r) {
-		remote = set->replica[r + 1]->remote;
+	unsigned r, idx;
+	for (r = 1, idx = 0; r < set->nreplicas; ++r) {
+		remote = set->replica[r]->remote;
+		if (remote == 0) {
+			continue;
+		}
 
-		assert(remote);
-
-		mb->nlanes[r] = args->n_threads;
+		mb->nlanes[idx] = args->n_threads;
 		/* Temporary WA for librpmem issue */
-		++mb->nlanes[r];
+		++mb->nlanes[idx];
 
-		mb->rpp[r] = rpmem_create(remote->node_addr, remote->pool_desc,
-					  mb->addrp, mb->pool_size,
-					  &mb->nlanes[r], &attr);
-		if (!mb->rpp[r]) {
+		mb->rpp[idx] = rpmem_create(remote->node_addr, remote->pool_desc,
+					mb->master.addrp, set->poolsize, &mb->nlanes[idx], &attr);
+		if (!mb->rpp[idx]) {
 			perror("rpmem_create");
 			goto err_rpmem_close;
 		}
 
-		if (mb->nlanes[r] < args->n_threads) {
+		if (mb->nlanes[idx] < args->n_threads) {
 			fprintf(stderr, "Number of threads too large for "
 					"replica #%u (max: %u)\n",
-				r, mb->nlanes[r]);
+				r, mb->nlanes[idx]);
 			r++; /* close current replica */
 			goto err_rpmem_close;
 		}
+
+		++idx;
 	}
 
 	util_poolset_free(set);
@@ -425,8 +588,12 @@ err_rpmem_close:
 err_free_lanes:
 	free(mb->nlanes);
 
-err_unmap_file:
-	rpmem_unmap_file(mb);
+err_free_local:
+	for (unsigned i = 0; i < mb->local_num; ++i) {
+		rpmem_replica_fini(&mb->local[i]);
+	}
+
+	rpmem_replica_fini(&mb->master);
 
 err_poolset_free:
 	util_poolset_free(set);
@@ -439,11 +606,11 @@ err_poolset_free:
 static void
 rpmem_poolset_fini(struct rpmem_bench *mb)
 {
-	for (unsigned r = 0; r < mb->nreplicas; ++r) {
+	for (unsigned r = 0; r < mb->remote_num; ++r) {
 		rpmem_close(mb->rpp[r]);
 	}
 
-	rpmem_unmap_file(mb);
+	rpmem_replica_fini(&mb->master);
 }
 
 /*
@@ -503,7 +670,15 @@ rpmem_init(struct benchmark *bench, struct benchmark_args *args)
 	if (op_mode == OP_MODE_UNKNOWN) {
 		fprintf(stderr, "Invalid operation mode argument '%s'\n",
 			mb->pargs->mode);
-		goto err_parse_mode;
+		goto err_parse_args;
+	}
+
+	mb->master.source =
+		parse_replica_source(mb->pargs->master_source);
+	if (mb->master.source == REPLICA_SOURCE_UNKNOWN) {
+		fprintf(stderr, "Invalid master replica source argument '%s'\n",
+			mb->pargs->mode);
+		goto err_parse_args;
 	}
 
 	rpmem_set_min_size(mb, op_mode, args);
@@ -536,7 +711,7 @@ err_warmup:
 err_init_offsets:
 	rpmem_poolset_fini(mb);
 err_poolset_init:
-err_parse_mode:
+err_parse_args:
 	free(mb);
 	return -1;
 }
@@ -560,7 +735,7 @@ rpmem_exit(struct benchmark *bench, struct benchmark_args *args)
 	return 0;
 }
 
-static struct benchmark_clo rpmem_clo[6];
+static struct benchmark_clo rpmem_clo[7];
 /* Stores information about benchmark. */
 static struct benchmark_info rpmem_info;
 CONSTRUCTOR(rpmem_persist_costructor)
@@ -621,6 +796,13 @@ pmem_rpmem_persist(void)
 	rpmem_clo[5].type_uint.base = CLO_INT_BASE_DEC;
 	rpmem_clo[5].type_uint.min = 0;
 	rpmem_clo[5].type_uint.max = UINT_MAX;
+
+	rpmem_clo[6].opt_short = 0;
+	rpmem_clo[6].opt_long = "master-replica-source";
+	rpmem_clo[6].descr = "Master replica: from-file, from-memory";
+	rpmem_clo[6].def = "from-file";
+	rpmem_clo[6].off = clo_field_offset(struct rpmem_args, master_source);
+	rpmem_clo[6].type = CLO_TYPE_STR;
 
 	rpmem_info.name = "rpmem_persist";
 	rpmem_info.brief = "Benchmark for rpmem_persist() "
