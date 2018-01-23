@@ -153,7 +153,7 @@ struct rpmem_fip {
 	struct fid_domain *domain; /* fabric protection domain */
 	struct fid_eq *eq; /* event queue */
 
-	volatile uint32_t closing; /* closing connections in progress */
+	uint32_t closing; /* closing connections in progress */
 
 	size_t cq_size;	/* completion queue size */
 
@@ -190,6 +190,26 @@ struct rpmem_fip {
 
 	cq_read_fn cq_read;		/* CQ read function */
 };
+
+/*
+ * rpmem_fip_start_closing -- (internal) mark fip as closing
+ */
+inline void
+rpmem_fip_start_closing(struct rpmem_fip *fip)
+{
+	util_atomic_store_explicit32(&fip->closing, 1, memory_order_release);
+}
+
+/*
+ * rpmem_fip_is_closing -- (internal) check if fip is closing
+ */
+inline uint32_t
+rpmem_fip_is_closing(struct rpmem_fip *fip)
+{
+	uint32_t dst;
+	util_atomic_load_explicit32(&fip->closing, &dst, memory_order_acquire);
+	return dst;
+}
 
 /*
  * rpmem_fip_lane_begin -- (internal) intialize list of events for lane
@@ -1416,22 +1436,3 @@ rpmem_fip_probe_fork_safety(int *fork_unsafe)
 	rpmem_fip_param_get(LIBFABRIC_FORK_UNSAFE_VAR, fork_unsafe);
 }
 
-/*
- * rpmem_fip_start_closing -- mark fip as closing
- */
-inline void
-rpmem_fip_start_closing(struct rpmem_fip *fip)
-{
-	util_atomic_store_explicit32(&fip->closing, 1, memory_order_release);
-}
-
-/*
- * rpmem_fip_is_closing -- check if fip is closing
- */
-inline uint32_t
-rpmem_fip_is_closing(struct rpmem_fip *fip)
-{
-	uint32_t dst;
-	util_atomic_load_explicit32(&fip->closing, &dst, memory_order_acquire);
-	return dst;
-}
