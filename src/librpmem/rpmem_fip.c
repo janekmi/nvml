@@ -153,7 +153,7 @@ struct rpmem_fip {
 	struct fid_domain *domain; /* fabric protection domain */
 	struct fid_eq *eq; /* event queue */
 
-	uint32_t closing; /* closing connections in progress */
+	volatile uint32_t closing; /* closing connections in progress */
 
 	size_t cq_size;	/* completion queue size */
 
@@ -197,18 +197,7 @@ struct rpmem_fip {
 static inline void
 rpmem_fip_start_closing(struct rpmem_fip *fip)
 {
-	util_atomic_store_explicit32(&fip->closing, 1, memory_order_release);
-}
-
-/*
- * rpmem_fip_is_closing -- (internal) check if fip is closing
- */
-static inline uint32_t
-rpmem_fip_is_closing(struct rpmem_fip *fip)
-{
-	uint32_t dst;
-	util_atomic_load_explicit32(&fip->closing, &dst, memory_order_acquire);
-	return dst;
+	util_fetch_and_or32(&fip->closing, 1);
 }
 
 /*
@@ -336,7 +325,7 @@ rpmem_fip_lane_wait(struct rpmem_fip *fip, struct rpmem_fip_lane *lanep,
 	struct fi_cq_msg_entry cq_entry;
 
 	while (lanep->event & e) {
-		if (unlikely(rpmem_fip_is_closing(fip)))
+		if (unlikely(fip->closing))
 			return ECONNRESET;
 
 		sret = fip->cq_read(lanep->cq, &cq_entry, 1);
@@ -364,7 +353,7 @@ err_cq_read:
 	str_err = fi_cq_strerror(lanep->cq, err.prov_errno, NULL, NULL, 0);
 	RPMEM_LOG(ERR, "error reading from completion queue: %s", str_err);
 err:
-	if (unlikely(rpmem_fip_is_closing(fip)))
+	if (unlikely(fip->closing))
 		return ECONNRESET; /* it will be passed to errno */
 
 	return ret;
@@ -648,7 +637,7 @@ rpmem_fip_monitor_thread(void *arg)
 	uint32_t event;
 	int ret;
 
-	while (!rpmem_fip_is_closing(fip)) {
+	while (!fip->closing) {
 		ret = rpmem_fip_read_eq(fip->eq, &entry, &event,
 				RPMEM_MONITOR_TIMEOUT);
 		if (unlikely(ret == 0) && event == FI_SHUTDOWN) {
@@ -1205,7 +1194,7 @@ rpmem_fip_close(struct rpmem_fip *fip)
 	int ret;
 	int lret = 0;
 
-	if (unlikely(rpmem_fip_is_closing(fip)))
+	if (unlikely(fip->closing))
 		goto close_monitor;
 
 	rpmem_fip_fini_memory(fip);
@@ -1230,7 +1219,7 @@ int
 rpmem_fip_persist(struct rpmem_fip *fip, size_t offset, size_t len,
 	unsigned lane)
 {
-	if (unlikely(rpmem_fip_is_closing(fip)))
+	if (unlikely(fip->closing))
 		return ECONNRESET; /* it will be passed to errno */
 
 	RPMEM_ASSERT(lane < fip->nlanes);
@@ -1260,7 +1249,7 @@ rpmem_fip_persist(struct rpmem_fip *fip, size_t offset, size_t len,
 		len -= tmp_len;
 	}
 err:
-	if (unlikely(rpmem_fip_is_closing(fip)))
+	if (unlikely(fip->closing))
 		return ECONNRESET; /* it will be passed to errno */
 
 	return ret;
@@ -1275,7 +1264,7 @@ rpmem_fip_read(struct rpmem_fip *fip, void *buff, size_t len,
 {
 	int ret;
 
-	if (unlikely(rpmem_fip_is_closing(fip)))
+	if (unlikely(fip->closing))
 		return ECONNRESET; /* it will be passed to errno */
 
 	RPMEM_ASSERT(lane < fip->nlanes);
@@ -1361,7 +1350,7 @@ err_readmsg:
 err_rd_mr:
 	free(rd_buff);
 err_malloc_rd_buff:
-	if (unlikely(rpmem_fip_is_closing(fip)))
+	if (unlikely(fip->closing))
 		return ECONNRESET; /* it will be passed to errno */
 
 	return ret;
