@@ -197,6 +197,10 @@ struct rpmem_fip {
 static inline void
 rpmem_fip_start_closing(struct rpmem_fip *fip)
 {
+	/*
+	 * load and store without barriers should be good enough here.
+	 * fetch_and_or are used as workaround for helgrind issue.
+	 */
 	util_fetch_and_or32(&fip->closing, 1);
 }
 
