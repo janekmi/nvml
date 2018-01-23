@@ -194,7 +194,7 @@ struct rpmem_fip {
 /*
  * rpmem_fip_start_closing -- (internal) mark fip as closing
  */
-inline void
+static inline void
 rpmem_fip_start_closing(struct rpmem_fip *fip)
 {
 	util_atomic_store_explicit32(&fip->closing, 1, memory_order_release);
@@ -203,7 +203,7 @@ rpmem_fip_start_closing(struct rpmem_fip *fip)
 /*
  * rpmem_fip_is_closing -- (internal) check if fip is closing
  */
-inline uint32_t
+static inline uint32_t
 rpmem_fip_is_closing(struct rpmem_fip *fip)
 {
 	uint32_t dst;
