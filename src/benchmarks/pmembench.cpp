@@ -71,7 +71,7 @@
 /* average time required to get a current time from the system */
 unsigned long long Get_time_avg;
 
-#define MIN_EXE_TIME_E 0.5
+#define MIN_EXE_TIME_E 0.1
 
 /*
  * struct pmembench -- main context
@@ -1273,6 +1273,7 @@ scale_up_min_exe_time(struct benchmark *bench, struct benchmark_args *args,
 		      size_t n_ops)
 {
 	const double min_exe_time = args->min_exe_time;
+	const double time_e = min_exe_time * MIN_EXE_TIME_E;
 	struct total_results *total_res = *total_results;
 	total_res->nrepeats = 1;
 	do {
@@ -1284,7 +1285,7 @@ scale_up_min_exe_time(struct benchmark *bench, struct benchmark_args *args,
 		if (ret != 0)
 			return 1;
 		get_total_results(total_res);
-		if (min_exe_time < total_res->total.min + MIN_EXE_TIME_E)
+		if (min_exe_time < total_res->total.min + time_e)
 			break;
 
 		if (args->min_exe_time_debug)
@@ -1294,8 +1295,7 @@ scale_up_min_exe_time(struct benchmark *bench, struct benchmark_args *args,
 		 * scale up number of operations to get assumed minimal
 		 * execution time
 		 */
-		n_ops = (size_t)((double)n_ops *
-				 (min_exe_time + MIN_EXE_TIME_E) /
+		n_ops = (size_t)((double)n_ops * (min_exe_time + time_e) /
 				 total_res->total.min);
 		args->n_ops_per_thread = n_ops;
 
