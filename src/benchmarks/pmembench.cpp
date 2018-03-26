@@ -174,7 +174,7 @@ static struct version_s {
 static struct bench_list benchmarks;
 
 /* common arguments for benchmarks */
-static struct benchmark_clo pmembench_clos[12];
+static struct benchmark_clo pmembench_clos[13];
 
 /* list of arguments for pmembench */
 static struct benchmark_clo pmembench_opts[2];
@@ -336,6 +336,15 @@ pmembench_costructor(void)
 	pmembench_clos[11].type_uint.base = CLO_INT_BASE_DEC;
 	pmembench_clos[11].type_uint.min = 0;
 	pmembench_clos[11].type_uint.max = ULONG_MAX;
+
+	pmembench_clos[12].opt_short = 'E';
+	pmembench_clos[12].opt_long = "min-exe-time-debug";
+	pmembench_clos[12].descr = "Print minimal execution time debug info";
+	pmembench_clos[12].type = CLO_TYPE_FLAG;
+	pmembench_clos[12].off =
+		clo_field_offset(struct benchmark_args, min_exe_time_debug);
+	pmembench_clos[12].def = "false";
+	pmembench_clos[12].ignore_in_res = false;
 }
 
 /*
@@ -1277,6 +1286,9 @@ scale_up_min_exe_time(struct benchmark *bench, struct benchmark_args *args,
 		get_total_results(total_res);
 		if (min_exe_time < total_res->total.min + MIN_EXE_TIME_E)
 			break;
+
+		if (args->min_exe_time_debug)
+			pmembench_print_results(bench, args, total_res);
 
 		/*
 		 * scale up number of operations to get assumed minimal
