@@ -95,6 +95,7 @@ struct benchmark_args {
 	unsigned seed;		 /* PRNG seed */
 	unsigned repeats;	/* number of repeats of one scenario */
 	unsigned min_exe_time;   /* minimal execution time */
+	bool min_exe_time_debug; /* print minimal execution time debug output */
 	bool help;		 /* print help for benchmark */
 	void *opts;		 /* benchmark specific arguments */
 };
