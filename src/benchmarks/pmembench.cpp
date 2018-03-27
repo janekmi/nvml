@@ -94,6 +94,9 @@ struct benchmark {
 	struct benchmark_clo *clos;
 	size_t nclos;
 	size_t args_size;
+
+	bool is_stoppable;
+	int stopping;
 };
 
 /*
@@ -123,6 +126,7 @@ struct latency {
  * struct thread_results -- results of a single thread
  */
 struct thread_results {
+	size_t nops;
 	benchmark_time_t beg;
 	benchmark_time_t end;
 	benchmark_time_t end_op[];
@@ -458,6 +462,30 @@ pmembench_run_worker(struct benchmark *bench, struct worker_info *winfo)
 }
 
 /*
+ * pmembench_run_stoppable_worker -- run stoppable worker with benchmark
+ * operation
+ */
+static int
+pmembench_run_stoppable_worker(struct benchmark *bench,
+			       struct worker_info *winfo)
+{
+	size_t i = 0;
+	benchmark_time_get(&winfo->beg);
+	for (; i < winfo->nops; i++) {
+		if (bench->info->operation(bench, &winfo->opinfo[i]))
+			return -1;
+		benchmark_time_get(&winfo->opinfo[i].end);
+
+		if (bench->stopping)
+			break;
+	}
+	benchmark_time_get(&winfo->end);
+	winfo->nops = i;
+
+	return 0;
+}
+
+/*
  * pmembench_print_header -- print header of benchmark's results
  */
 static void
@@ -658,7 +686,9 @@ pmembench_init_workers(struct benchmark_worker **workers, size_t nworkers,
 		}
 		workers[i]->bench = bench;
 		workers[i]->args = args;
-		workers[i]->func = pmembench_run_worker;
+		workers[i]->func = bench->is_stoppable
+			? pmembench_run_stoppable_worker
+			: pmembench_run_worker;
 		workers[i]->init = bench->info->init_worker;
 		workers[i]->exit = bench->info->free_worker;
 		benchmark_worker_init(workers[i]);
@@ -684,6 +714,7 @@ results_store(struct bench_results *res, struct benchmark_worker **workers,
 			res->thres[i]->end_op[j] =
 				workers[i]->info.opinfo[j].end;
 		}
+		res->thres[i]->nops = workers[i]->info.nops;
 	}
 }
 
@@ -725,8 +756,12 @@ compare_uint64t(const void *a1, const void *b1)
  * results_alloc -- prepare structure to store all benchmark results
  */
 static struct total_results *
-results_alloc(size_t nrepeats, size_t nthreads, size_t nops)
+results_alloc(struct benchmark_args *args)
 {
+	const size_t nrepeats = args->repeats;
+	const size_t nthreads = args->n_threads;
+	const size_t nops = args->n_ops_per_thread;
+
 	struct total_results *total =
 		(struct total_results *)malloc(sizeof(*total));
 	assert(total != NULL);
@@ -766,6 +801,17 @@ results_free(struct total_results *total)
 	}
 	free(total->res);
 	free(total);
+}
+
+/*
+ * results_realloc -- XXX returned resource is not initialized and do not
+ * contains original content
+ */
+static struct total_results *
+results_realloc(struct total_results *total, struct benchmark_args *args)
+{
+	results_free(total);
+	return results_alloc(args);
 }
 
 /*
@@ -849,6 +895,16 @@ get_total_results(struct total_results *tres)
 	/* total average time */
 	tres->total.avg /= (double)tres->nrepeats;
 
+	/* XXX */
+	uint64_t nopssum = 0;
+	for (size_t i = 0; i < tres->nrepeats; i++) {
+		struct bench_results *res = &tres->res[i];
+		for (size_t j = 0; j < tres->nthreads; j++) {
+			nopssum += res->thres[j]->nops;
+		}
+	}
+	tres->nops = (size_t)(nopssum / tres->nrepeats / tres->nthreads);
+
 	/* number of operations per second */
 	tres->nopsps =
 		(double)tres->nops * (double)tres->nthreads / tres->total.avg;
@@ -869,7 +925,7 @@ get_total_results(struct total_results *tres)
 		for (size_t j = 0; j < tres->nthreads; j++) {
 			struct thread_results *thres = res->thres[j];
 			benchmark_time_t *beg = &thres->beg;
-			for (size_t o = 0; o < tres->nops; o++) {
+			for (size_t o = 0; o < thres->nops; o++) {
 				benchmark_time_t lat;
 				benchmark_time_diff(&lat, beg,
 						    &thres->end_op[o]);
@@ -902,7 +958,7 @@ get_total_results(struct total_results *tres)
 		for (size_t j = 0; j < tres->nthreads; j++) {
 			struct thread_results *thres = res->thres[j];
 			benchmark_time_t *beg = &thres->beg;
-			for (size_t o = 0; o < tres->nops; o++) {
+			for (size_t o = 0; o < thres->nops; o++) {
 				benchmark_time_t lat;
 				benchmark_time_diff(&lat, beg,
 						    &thres->end_op[o]);
@@ -1180,6 +1236,20 @@ pmembench_remove_file(const char *path)
 	return util_file_dir_remove(path);
 }
 
+#define PROBE_SLEEP_TIME (3 * 60)
+
+/*
+ * probe_stop_thread_func -- XXX
+ */
+static void *
+probe_stop_thread_func(void *arg)
+{
+	struct benchmark *bench = (struct benchmark *)arg;
+	sleep(PROBE_SLEEP_TIME * (MIN_EXE_TIME_E + 1));
+	util_fetch_and_or32(&bench->stopping, 1);
+	return NULL;
+}
+
 /*
  * pmembench_single_repeat -- runs benchmark ones
  */
@@ -1227,9 +1297,20 @@ pmembench_single_repeat(struct benchmark *bench, struct benchmark_args *args,
 		args->n_threads * sizeof(struct benchmark_worker *));
 	assert(workers != NULL);
 
+	bench->stopping = 0;
+
 	if ((ret = pmembench_init_workers(workers, n_threads, n_ops, bench,
 					  args)) != 0) {
 		goto out;
+	}
+
+	os_thread_t stop_thread;
+	if (bench->is_stoppable) {
+		if (os_thread_create(&stop_thread, NULL, probe_stop_thread_func,
+				     bench)) {
+			// PRINT some error message
+			goto out;
+		}
 	}
 
 	unsigned j;
@@ -1273,10 +1354,59 @@ scale_up_min_exe_time(struct benchmark *bench, struct benchmark_args *args,
 		      size_t n_ops)
 {
 	const double min_exe_time = args->min_exe_time;
-	const double time_e = min_exe_time * MIN_EXE_TIME_E;
+	double time_e = PROBE_SLEEP_TIME * MIN_EXE_TIME_E;
 	struct total_results *total_res = *total_results;
 	total_res->nrepeats = 1;
+
+	bench->is_stoppable = 1;
+
 	do {
+		/*
+		 * run single benchmark repeat to probe execution time
+		 */
+		bench->stopping = 0;
+		int ret = pmembench_single_repeat(bench, args, n_threads, n_ops,
+						  &total_res->res[0]);
+		if (ret != 0)
+			return 1;
+		get_total_results(total_res);
+		args->n_ops_per_thread = n_ops = total_res->nops;
+
+		if (args->min_exe_time_debug)
+			pmembench_print_results(bench, args, total_res);
+
+		if (PROBE_SLEEP_TIME - time_e < total_res->total.min)
+			break;
+
+		/*
+		 * scale up number of operations to overreach probe time
+		 */
+		n_ops = (size_t)((double)n_ops * PROBE_SLEEP_TIME * 10 /
+				 total_res->total.min);
+		args->n_ops_per_thread = n_ops;
+
+		/* realloc results structure */
+		*total_results = total_res = results_realloc(total_res, args);
+		assert(total_res != NULL);
+		total_res->nrepeats = 1;
+	} while (1);
+
+	time_e = min_exe_time * MIN_EXE_TIME_E;
+	bench->is_stoppable = 0;
+	do {
+		/*
+		 * scale up number of operations to get assumed minimal
+		 * execution time
+		 */
+		n_ops = (size_t)((double)n_ops * min_exe_time /
+				 total_res->total.min);
+		args->n_ops_per_thread = n_ops;
+
+		/* realloc results structure */
+		*total_results = total_res = results_realloc(total_res, args);
+		assert(total_res != NULL);
+		total_res->nrepeats = 1;
+
 		/*
 		 * run single benchmark repeat to probe execution time
 		 */
@@ -1285,26 +1415,12 @@ scale_up_min_exe_time(struct benchmark *bench, struct benchmark_args *args,
 		if (ret != 0)
 			return 1;
 		get_total_results(total_res);
+
 		if (min_exe_time < total_res->total.min + time_e)
 			break;
 
 		if (args->min_exe_time_debug)
 			pmembench_print_results(bench, args, total_res);
-
-		/*
-		 * scale up number of operations to get assumed minimal
-		 * execution time
-		 */
-		n_ops = (size_t)((double)n_ops * (min_exe_time + time_e) /
-				 total_res->total.min);
-		args->n_ops_per_thread = n_ops;
-
-		results_free(total_res);
-		*total_results = results_alloc(args->repeats, args->n_threads,
-					       args->n_ops_per_thread);
-		assert(*total_results != NULL);
-		total_res = *total_results;
-		total_res->nrepeats = 1;
 	} while (1);
 	total_res->nrepeats = args->repeats;
 	return 0;
@@ -1433,8 +1549,7 @@ pmembench_run(struct pmembench *pb, struct benchmark *bench)
 		workers_times = (double *)calloc(n_threads * args->repeats,
 						 sizeof(double));
 		assert(workers_times != NULL);
-		total_res = results_alloc(args->repeats, args->n_threads,
-					  args->n_ops_per_thread);
+		total_res = results_alloc(args);
 		assert(total_res != NULL);
 
 		unsigned i = 0;
