@@ -581,7 +581,7 @@ rpmem_poolset_init(const char *path, struct rpmem_bench *mb,
 	return 0;
 
 err_rpmem_close:
-	for (unsigned i = 0; i < r; i++)
+	for (unsigned i = 0; i < idx; i++)
 		rpmem_close(mb->rpp[i]);
 	free(mb->rpp);
 
