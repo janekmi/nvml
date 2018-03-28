@@ -680,12 +680,12 @@ rpmemd_fip_init_gpspm(struct rpmemd_fip *fip)
 				FI_COMPLETION);
 	}
 
-	if( fip->max_flushing_threads )
-	 {
-	    if (sem_init(&fip->flushing_sem, 0, fip->max_flushing_threads))
-
-	      return 0;
-	  }
+	if (fip->max_flushing_threads) {
+		if (!sem_init(&fip->flushing_sem, 0, fip->max_flushing_threads))
+			return 0;
+	} else {
+		return 0;
+	}
 err_mr_reg_msg_resp:
 	free(fip->pres);
 err_msg_resp_malloc:
