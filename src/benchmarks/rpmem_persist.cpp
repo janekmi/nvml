@@ -211,13 +211,17 @@ init_offsets(struct benchmark_args *args, struct rpmem_bench *mb,
 						(os_rand_r(&seed) * 2 + j % 2) %
 						n_ops_by_size;
 					break;
+				case OP_MODE_RAND_1DIMM_PER_THREAD_WRAP:
+					chunk_idx = i * n_ops_by_size +
+						(os_rand_r(&seed) * 2 + i % 2) %
+						n_ops_by_size;
+					break;
 				default:
 					assert(0);
 					return -1;
 			}
 
-			mb->offsets[off_idx] = POOL_HDR_SIZE +
-				chunk_idx * mb->csize_align +
+			mb->offsets[off_idx] = chunk_idx * mb->csize_align +
 				mb->pargs->dest_off;
 		}
 	}
