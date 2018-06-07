@@ -135,14 +135,14 @@ pool_hdr_preliminary_check(PMEMpoolcheck *ppc, location *loc)
 	} else if (loc->hdr_valid) {
 		enum pool_type type = pool_hdr_get_type(&loc->hdr);
 		if (type == POOL_TYPE_UNKNOWN) {
+			CHECK_INFO(ppc, "%sunknown signature: %s",
+				loc->prefix, loc->hdr.signature);
+
 			if (CHECK_IS_NOT(ppc, REPAIR)) {
 				check_end(ppc->data);
-				ppc->result = CHECK_RESULT_NOT_CONSISTENT;
-				return CHECK_ERR(ppc, "%sinvalid signature",
-					loc->prefix);
+				ppc->result = CHECK_RESULT_CONSISTENT;
+				return 0;
 			}
-
-			CHECK_INFO(ppc, "%sinvalid signature", loc->prefix);
 		} else {
 			/* valid check sum */
 			CHECK_INFO(ppc, "%spool header correct",
