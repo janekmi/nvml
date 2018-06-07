@@ -139,8 +139,7 @@ pool_hdr_preliminary_check(PMEMpoolcheck *ppc, location *loc)
 				loc->prefix, loc->hdr.signature);
 
 			if (CHECK_IS_NOT(ppc, REPAIR)) {
-				check_end(ppc->data);
-				ppc->result = CHECK_RESULT_CONSISTENT;
+				loc->step = CHECK_STEP_COMPLETE;
 				return 0;
 			}
 		} else {
