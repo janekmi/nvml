@@ -264,6 +264,12 @@ see src/librpmem/README for details.
 endif
 endif
 
+# XXX
+ifeq ($(HAS_IBVERBS),)
+# export HAS_IBVERBS := $(call check_package, libibverbs)
+export HAS_IBVERBS := y
+endif
+
 NDCTL_MIN_VERSION := 60.1
 
 sparse-c = $(shell for c in *.c; do sparse -Wsparse-all -Wno-declaration-after-statement $(CFLAGS) $(INCS) $$c || true; done)

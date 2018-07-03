@@ -152,6 +152,15 @@ else
 $(info NOTE: Skipping librpmem benchmark because $(BUILD_RPMEM_INFO))
 endif
 
+# XXX
+ifeq ($(HAS_IBVERBS),y)
+SRC += ibverbs.cpp
+LIBS += -libverbs $(shell pkg-config --libs libibverbs)
+CONFIGS += pmembench_ibverbs
+else
+$(info NOTE: Skipping libibverbs benchmark)
+endif
+
 ifeq ($(GLIB),y)
 CXXFLAGS += $(shell $(PKG_CONFIG) --cflags glib-2.0)
 LIBS += $(shell $(PKG_CONFIG) --libs glib-2.0)
