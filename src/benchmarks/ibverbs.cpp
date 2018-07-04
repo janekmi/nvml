@@ -44,6 +44,8 @@
 #include <fcntl.h>
 #include <infiniband/verbs.h>
 
+#include <libpmem.h>
+
 #include "benchmark.hpp"
 
 #define calc_idx(th, nops, op)\
@@ -52,10 +54,6 @@
 #define NULL_STR "null"
 
 #define VERBS_ACCESS (IBV_ACCESS_REMOTE_WRITE | IBV_ACCESS_LOCAL_WRITE)
-#define OPEN_FLAGS (O_RDWR)
-#define FLOCK_FLAGS (OS_LOCK_EX | OS_LOCK_NB)
-#define MMAP_PROTO (PROT_READ | PROT_WRITE)
-#define MMAP_FLAGS (MAP_SHARED)
 
 enum memory_source {
 	from_malloc,
@@ -99,12 +97,13 @@ struct ibverbs_bench {
 	struct ibv_context *context; /* ibverbs context */
 	struct ibv_pd *pd;	     /* protection domain */
 	struct ibv_mr **mrs;	     /* memory regions */
-	/* memory assets */
+	/* parameters */
 	int page_size;
-	enum memory_source mr_src;
-	int fd;
-	void *addr;		     /* base addr */
 	size_t size;
+	enum memory_source mr_src;
+	/* memory assets */
+	void *addr;		     /* base addr */
+	size_t fsize;
 };
 
 /*
@@ -220,27 +219,19 @@ memory_malloc(struct ibverbs_bench *mb)
  */
 static int
 memory_from_file(struct ibverbs_bench *mb, const char *fname) {
-	mb->fd = open(fname, OPEN_FLAGS);
-	if (mb->fd < 0) {
-		perror("open");
+	int is_pmem;
+	mb->addr = pmem_map_file(fname, 0, 0, 0, &mb->fsize, &is_pmem);
+	if (!mb->addr) {
+		perror("pmem_map_file");
 		return -1;
 	}
-	if (flock(mb->fd, FLOCK_FLAGS) < 0) {
-		perror("flock");
-		goto err_flock;
-	}
-	mb->addr = mmap(NULL, mb->size, MMAP_PROTO, MMAP_FLAGS, mb->fd, 0);
-	if (mb->addr == MAP_FAILED) {
-		perror("mmap");
-		goto err_mmap;
+	if (mb->fsize < mb->size) {
+		fprintf(stderr, "file is too small (%zu < %zu): %s",
+			mb->fsize, mb->size, fname);
+		pmem_unmap(mb->addr, mb->fsize);
+		return -1;
 	}
 	return 0;
-
-err_mmap:
-	flock(mb->fd, LOCK_UN);
-err_flock:
-	close(mb->fd);
-	return -1;
 }
 
 /*
@@ -276,9 +267,7 @@ cleanup_memory(struct ibverbs_bench *mb, struct benchmark_args *args) {
 		free(mb->addr);
 		break;
 	case from_file:
-		munmap(mb->addr, mb->size);
-		flock(mb->fd, LOCK_UN);
-		close(mb->fd);
+		pmem_unmap(mb->addr, mb->fsize);
 		break;
 	default:
 		;
