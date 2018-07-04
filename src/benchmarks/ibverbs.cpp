@@ -39,6 +39,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
+#include <sys/param.h>
 #include <infiniband/verbs.h>
 
 #include <libpmem.h>
@@ -96,6 +97,7 @@ struct ibverbs_bench {
 	struct ibv_mr **mrs;	     /* memory regions */
 	/* parameters */
 	int page_size;
+	int alignment;
 	size_t size;
 	enum memory_source mr_src;
 	/* memory assets */
@@ -203,7 +205,7 @@ ibverbs_close(struct ibverbs_bench *mb, struct benchmark_args *args)
 static int
 memory_malloc(struct ibverbs_bench *mb)
 {
-	errno = posix_memalign(&mb->addr, mb->page_size, mb->size);
+	errno = posix_memalign(&mb->addr, mb->alignment, mb->size);
 	if (errno) {
 		perror("posix_memalign");
 		return -1;
@@ -279,6 +281,7 @@ prepare_assets(struct ibverbs_bench *mb, struct benchmark_args *args) {
 	const uint64_t n_ops = args->n_threads * args->n_ops_per_thread;
 	mb->size = n_ops * args->dsize;
 	mb->page_size = sysconf(_SC_PAGESIZE);
+	mb->alignment = roundup(args->dsize, mb->page_size);
 	
 	// prepare memory regions array
 	mb->mrs = (struct ibv_mr **)calloc(n_ops, sizeof(struct ibv_mr *));
