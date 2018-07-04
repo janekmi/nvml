@@ -35,13 +35,10 @@
  */
 
 #include <cassert>
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/file.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 #include <sys/mman.h>
-#include <fcntl.h>
 #include <infiniband/verbs.h>
 
 #include <libpmem.h>
@@ -303,10 +300,11 @@ err_mr:
  * do_warmup -- XXX
  */
 static void
-do_warmup(struct ibverbs_bench *mb) {
+do_warmup(struct ibverbs_bench *mb, unsigned int seed) {
 	char *buff = (char *)mb->addr;
+	srand(seed);
 	for (size_t off = 0; off < mb->size; off += mb->page_size) {
-		buff[off] = 0;
+		buff[off] = rand() % CHAR_MAX;
 	}
 }
 
@@ -333,7 +331,7 @@ ibverbs_init(struct benchmark *bench, struct benchmark_args *args)
 	}
 
 	if (!mb->pargs->no_warmup) {
-		do_warmup(mb);
+		do_warmup(mb, args->seed);
 	}
 
 	pmembench_set_priv(bench, mb);
