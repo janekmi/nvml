@@ -115,7 +115,9 @@ ibverbs_op(struct benchmark *bench, struct operation_info *info)
 	uint64_t idx = calc_idx(info->worker->index, info->args->n_ops_per_thread, info->index);
 	void *addr = (char *)mb->addr + idx * info->args->dsize;
 	mb->mrs[idx] = ibv_reg_mr(mb->pd, addr, info->args->dsize, VERBS_ACCESS);
-
+	if (!mb->mrs[idx]) {
+		perror("ibv_reg_mr");
+	}
 	return mb->mrs[idx] == NULL ? -1 : 0;
 }
 
@@ -181,6 +183,9 @@ ibverbs_dereg_mrs(struct ibverbs_bench *mb, struct benchmark_args *args)
 	for(unsigned th = 0; th < args->n_threads; ++th) {
 		for (size_t op = 0; op < args->n_ops_per_thread; ++op) {
 			uint64_t idx = calc_idx(th, args->n_ops_per_thread, op);
+			if (!mb->mrs[idx]) {
+				continue;
+			}
 			errno = ibv_dereg_mr(mb->mrs[idx]);
 			if (errno) {
 				perror("ibv_dereg_mr");
