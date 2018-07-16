@@ -221,7 +221,7 @@ memory_malloc(struct ibverbs_bench *mb)
 	/* errno = posix_memalign(&mb->addr, mb->alignment, mb->size); */
 	mb->addr = mmap(NULL, mb->size, MMAP_PROT, flags, 0, 0);
 	if (mb->addr == MAP_FAILED) {
-		perror("posix_memalign");
+		perror("mmap");
 		return -1;
 	}
 	return 0;
@@ -277,7 +277,7 @@ static void
 cleanup_memory(struct ibverbs_bench *mb, struct benchmark_args *args) {
 	switch(mb->mr_src) {
 	case from_malloc:
-		free(mb->addr);
+		munmap(mb->addr, mb->size);
 		break;
 	case from_file:
 		pmem_unmap(mb->addr, mb->fsize);
