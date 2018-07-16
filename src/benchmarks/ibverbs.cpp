@@ -51,6 +51,9 @@
 
 #define NULL_STR "null"
 
+#define MMAP_PROT (PROT_READ|PROT_WRITE)
+#define MMAP_FLAGS (MAP_PRIVATE|MAP_ANONYMOUS)
+
 #define VERBS_ACCESS (IBV_ACCESS_REMOTE_WRITE | IBV_ACCESS_LOCAL_WRITE)
 
 enum memory_source {
@@ -82,6 +85,8 @@ parse_memory_source(const char *str) {
  */
 struct ibverbs_args {
 	bool no_warmup;    /* do not do warmup */
+	bool hugepages;	   /* use hugepages */
+	size_t page_size;  /* page size */
 	char *device;	   /* IB device name */
 	char *mr_src;	   /* memory source */
 };
@@ -96,7 +101,6 @@ struct ibverbs_bench {
 	struct ibv_pd *pd;	     /* protection domain */
 	struct ibv_mr **mrs;	     /* memory regions */
 	/* parameters */
-	int page_size;
 	int alignment;
 	size_t size;
 	enum memory_source mr_src;
@@ -210,8 +214,13 @@ ibverbs_close(struct ibverbs_bench *mb, struct benchmark_args *args)
 static int
 memory_malloc(struct ibverbs_bench *mb)
 {
-	errno = posix_memalign(&mb->addr, mb->alignment, mb->size);
-	if (errno) {
+	int flags = MMAP_FLAGS;
+	if (mb->pargs->hugepages) {
+		flags |= MAP_HUGETLB;
+	}
+	/* errno = posix_memalign(&mb->addr, mb->alignment, mb->size); */
+	mb->addr = mmap(NULL, mb->size, MMAP_PROT, flags, 0, 0);
+	if (mb->addr == MAP_FAILED) {
 		perror("posix_memalign");
 		return -1;
 	}
@@ -285,8 +294,7 @@ static int
 prepare_assets(struct ibverbs_bench *mb, struct benchmark_args *args) {
 	const uint64_t n_ops = args->n_threads * args->n_ops_per_thread;
 	mb->size = n_ops * args->dsize;
-	mb->page_size = sysconf(_SC_PAGESIZE);
-	mb->alignment = roundup(args->dsize, mb->page_size);
+	mb->alignment = roundup(args->dsize, mb->pargs->page_size);
 	
 	// prepare memory regions array
 	mb->mrs = (struct ibv_mr **)calloc(n_ops, sizeof(struct ibv_mr *));
@@ -311,7 +319,7 @@ static void
 do_warmup(struct ibverbs_bench *mb, unsigned int seed) {
 	char *buff = (char *)mb->addr;
 	srand(seed);
-	for (size_t off = 0; off < mb->size; off += mb->page_size) {
+	for (size_t off = 0; off < mb->size; off += mb->pargs->page_size) {
 		buff[off] = rand() % CHAR_MAX;
 	}
 }
@@ -368,7 +376,7 @@ ibverbs_exit(struct benchmark *bench, struct benchmark_args *args)
 	return 0;
 }
 
-static struct benchmark_clo ibverbs_clo[3];
+static struct benchmark_clo ibverbs_clo[5];
 /* Stores information about benchmark. */
 static struct benchmark_info rpmem_info;
 CONSTRUCTOR(rpmem_persist_constructor)
@@ -391,10 +399,29 @@ pmem_ibverbs(void)
 
 	ibverbs_clo[2].opt_short = 'd';
 	ibverbs_clo[2].opt_long = "memory-source";
-	ibverbs_clo[2].descr = "Source of memory regions";
+	ibverbs_clo[2].descr = "Source of memory regions (malloc, file)";
 	ibverbs_clo[2].def = "malloc";
 	ibverbs_clo[2].off = clo_field_offset(struct ibverbs_args, mr_src);
 	ibverbs_clo[2].type = CLO_TYPE_STR;
+
+	ibverbs_clo[3].opt_short = 'p';
+	ibverbs_clo[3].opt_long = "page_size";
+	ibverbs_clo[3].descr = "Page size";
+	ibverbs_clo[3].def = "2097152"; /* 2 MB*/
+	ibverbs_clo[3].off = clo_field_offset(struct ibverbs_args, page_size);
+	ibverbs_clo[3].type = CLO_TYPE_UINT;
+	ibverbs_clo[3].type_uint.size =
+		clo_field_size(struct ibverbs_args, page_size);
+	ibverbs_clo[3].type_uint.base = CLO_INT_BASE_DEC;
+	ibverbs_clo[3].type_uint.min = 0;
+	ibverbs_clo[3].type_uint.max = UINT_MAX;
+
+	ibverbs_clo[4].opt_short = 'h';
+	ibverbs_clo[4].opt_long = "hugepages";
+	ibverbs_clo[4].descr = "Use hugepages";
+	ibverbs_clo[4].def = "true";
+	ibverbs_clo[4].type = CLO_TYPE_FLAG;
+	ibverbs_clo[4].off = clo_field_offset(struct ibverbs_args, hugepages);
 
 	rpmem_info.name = "ibverbs";
 	rpmem_info.brief = "Benchmark for ibverbs operations";
