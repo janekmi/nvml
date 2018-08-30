@@ -176,6 +176,7 @@ int util_feature_check(struct pool_hdr *hdrp, uint32_t incompat,
  */
 #define POOL_FEAT_SINGLEHDR	0x0001	/* pool header only in the first part */
 #define POOL_FEAT_CKSUM_2K	0x0002	/* only first 2K of hdr checksummed */
+#define POOL_FEAT_SDS		0x0004	/* XXX */
 
 #define POOL_FEAT_ALL	(POOL_FEAT_SINGLEHDR | POOL_FEAT_CKSUM_2K)
 

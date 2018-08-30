@@ -75,6 +75,7 @@ extern "C" {
 #include <stdint.h>
 #include <stddef.h>
 #include <limits.h>
+#include <pool_hdr.h>
 
 
 /* COMMON FLAGS */
@@ -265,6 +266,41 @@ int pmempool_transformU(const char *poolset_file_src,
 	const char *poolset_file_dst, unsigned flags);
 int pmempool_transformW(const wchar_t *poolset_file_src,
 	const wchar_t *poolset_file_dst, unsigned flags);
+#endif
+
+/* PMEMPOOL feature enable, disable, query */
+
+/*
+ * feature types
+ */
+enum pmempool_feature {
+	SINGLEHDR,
+	CKSUM_2K,
+	SHUTDOWN_STATE,
+};
+
+/* PMEMPOOL FEATURE ENABLE */
+#ifndef _WIN32
+int pmempool_feature_enable(const char *path, enum pmempool_feature f);
+#else
+int pmempool_feature_enableU(const char *path, enum pmempool_feature f);
+int pmempool_feature_enableW(const wchar_t *path, enum pmempool_feature f);
+#endif
+
+/* PMEMPOOL FEATURE DISABLE */
+#ifndef _WIN32
+int pmempool_feature_disable(const char *path, enum pmempool_feature f);
+#else
+int pmempool_feature_disableU(const char *path, enum pmempool_feature f);
+int pmempool_feature_disableW(const wchar_t *path, enum pmempool_feature f);
+#endif
+
+/* PMEMPOOL FEATURE QUERY */
+#ifndef _WIN32
+int pmempool_feature_query(const char *path, enum pmempool_feature f);
+#else
+int pmempool_feature_queryU(const char *path, enum pmempool_feature f);
+int pmempool_feature_queryW(const wchar_t *path, enum pmempool_feature f);
 #endif
 
 /* PMEMPOOL RM */
