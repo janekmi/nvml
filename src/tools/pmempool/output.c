@@ -889,7 +889,7 @@ out_get_incompat_features_str(uint32_t incompat)
 			return "<error>";
 		}
 
-		/* print the name of known options */
+		/* print names of known options */
 		int count = 0;
 		int curr = ret;
 
