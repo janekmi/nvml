@@ -121,8 +121,10 @@ static struct feature_funcs features[] = {
 int
 pmempool_feature_enableU(const char *path, enum pmempool_feature f)
 {
+	LOG(3, "path %s feature %x", path, f);
+
 	if (f >= FEATURE_FUNCS_MAX) {
-		ERR("!enable");
+		ERR("!Invalid feature argument");
 		return -1;
 	}
 
@@ -131,8 +133,10 @@ pmempool_feature_enableU(const char *path, enum pmempool_feature f)
 int
 pmempool_feature_disableU(const char *path, enum pmempool_feature f)
 {
+	LOG(3, "path %s feature %x", path, f);
+
 	if (f >= FEATURE_FUNCS_MAX) {
-		ERR("!disable");
+		ERR("Invalid feature argument");
 		return -1;
 	}
 
@@ -141,8 +145,10 @@ pmempool_feature_disableU(const char *path, enum pmempool_feature f)
 int
 pmempool_feature_queryU(const char *path, enum pmempool_feature f)
 {
+	LOG(3, "path %s feature %x", path, f);
+
 	if (f >= FEATURE_FUNCS_MAX) {
-		ERR("!query");
+		ERR("Invalid feature argument");
 		return -1;
 	}
 

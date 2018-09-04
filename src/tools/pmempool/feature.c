@@ -50,9 +50,9 @@ enum feature_op {
 };
 
 /*
- * pmempool_feature -- context and args for feature command
+ * feature_ctx -- context and args for feature command
  */
-struct pmempool_feature {
+struct feature_ctx {
 	int verbose;
 	char *fname;
 	enum feature_op op;
@@ -62,7 +62,7 @@ struct pmempool_feature {
 /*
  * pmempool_feature_default -- default args for feature command
  */
-static const struct pmempool_feature pmempool_feature_default = {
+static const struct feature_ctx pmempool_feature_default = {
 	.verbose	= 0,
 	.fname		= NULL,
 	.op		= undefined,
@@ -167,7 +167,7 @@ pmempool_feature2str(uint32_t *feature)
  * feature_perform -- XXX
  */
 static int
-feature_perform(struct pmempool_feature *pfp)
+feature_perform(struct feature_ctx *pfp)
 {
 	return 0;
 }
@@ -176,7 +176,7 @@ feature_perform(struct pmempool_feature *pfp)
  * set_op -- XXX
  */
 static void
-set_op(char *appname, struct pmempool_feature *pfp, enum feature_op op,
+set_op(char *appname, struct feature_ctx *pfp, enum feature_op op,
 		const char *feature)
 {
 	if (pfp->op == undefined) {
@@ -192,7 +192,7 @@ set_op(char *appname, struct pmempool_feature *pfp, enum feature_op op,
  * parse_args -- parse command line arguments
  */
 static int
-parse_args(struct pmempool_feature *pfp, char *appname,
+parse_args(struct feature_ctx *pfp, char *appname,
 		int argc, char *argv[])
 {
 	int opt;
@@ -237,7 +237,7 @@ int
 pmempool_feature_func(char *appname, int argc, char *argv[])
 {
 	int ret = 0;
-	struct pmempool_feature pf = pmempool_feature_default;
+	struct feature_ctx pf = pmempool_feature_default;
 
 	/* parse command line arguments */
 	ret = parse_args(&pf, appname, argc, argv);
