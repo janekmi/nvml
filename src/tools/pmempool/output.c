@@ -45,6 +45,7 @@
 #include <endian.h>
 #include <inttypes.h>
 #include <float.h>
+#include "feature.h"
 #include "common.h"
 #include "output.h"
 
@@ -873,13 +874,6 @@ out_concat(char *str_buff, int *curr, int *count, const char *str)
 	return 0;
 }
 
-#define INCOMPAT_FEATURES_MAX 2
-
-static const char *incompat_features_str[INCOMPAT_FEATURES_MAX] = {
-	"SINGLEHDR",
-	"CKSUM_2K"
-};
-
 /*
  * out_get_incompat_features_str -- (internal) get a string with names of
  *                                  incompatibility flags
@@ -889,9 +883,6 @@ out_get_incompat_features_str(uint32_t incompat)
 {
 	static char str_buff[STR_MAX] = {0};
 	int ret = 0;
-
-	/* all features has to be named in incompat_features_str array */
-	COMPILE_ERROR_ON(POOL_FEAT_ALL >> INCOMPAT_FEATURES_MAX);
 
 	if (incompat == 0) {
 		/* print the value only */
@@ -907,17 +898,12 @@ out_get_incompat_features_str(uint32_t incompat)
 		/* print the name of known options */
 		int count = 0;
 		int curr = ret;
+		const char *feat;
 
-		for (uint32_t f = 0; f < INCOMPAT_FEATURES_MAX; ++f) {
-			const uint32_t feat_bit = (1u << f);
-			if (incompat & feat_bit) {
-				ret = out_concat(str_buff, &curr, &count,
-						incompat_features_str[f]);
-				if (ret < 0)
-					return "";
-				/* take off the flag */
-				incompat &= (uint32_t)(~(feat_bit));
-			}
+		while (((feat = pmempool_feature2str(&incompat))) != NULL) {
+			ret = out_concat(str_buff, &curr, &count, feat);
+			if (ret < 0)
+				return "";
 		}
 
 		/* check if any unknown flags are set */
