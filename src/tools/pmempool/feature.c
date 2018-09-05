@@ -39,7 +39,6 @@
 #include "common.h"
 #include "feature.h"
 #include "output.h"
-
 #include "libpmempool.h"
 
 enum feature_op {
@@ -169,8 +168,8 @@ pmempool_feature2str(uint32_t *feature)
 static int
 feature_perform(struct feature_ctx *pfp)
 {
-	switch(pfp->op)
-	{
+
+	switch (pfp->op) {
 	case enable:
 		return pmempool_feature_enable(pfp->fname, pfp->op);
 	case disable:
