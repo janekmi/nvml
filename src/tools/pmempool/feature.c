@@ -128,7 +128,7 @@ static const char *incompat_features_str[] = {
 #define INCOMPAT_FEATURES_MAX ARRAY_SIZE(incompat_features_str)
 
 /*
- * pmempool_str2feature -- XXX
+ * pmempool_str2feature -- convert string to unit32_t feature
  */
 uint32_t
 pmempool_str2feature(const char *str)
@@ -146,7 +146,7 @@ pmempool_str2feature(const char *str)
 }
 
 /*
- * pmempool_feature2str -- XXX
+ * pmempool_feature2str -- convert unit32_t feature to string
  */
 const char *
 pmempool_feature2str(uint32_t *feature)
@@ -169,7 +169,18 @@ pmempool_feature2str(uint32_t *feature)
 static int
 feature_perform(struct feature_ctx *pfp)
 {
-	return 0;
+	switch(pfp->op)
+	{
+	case enable:
+		return pmempool_feature_enable(pfp->fname, pfp->op);
+	case disable:
+		return pmempool_feature_disable(pfp->fname, pfp->op);
+	case query:
+		return pmempool_feature_query(pfp->fname, pfp->op);
+	default:
+		ERR("Invalid option.");
+		return -1;
+	}
 }
 
 /*
