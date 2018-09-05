@@ -53,6 +53,9 @@
 #define pmempool_rm pmempool_rmW
 #define pmempool_check_version pmempool_check_versionW
 #define pmempool_errormsg pmempool_errormsgW
+#define pmempool_feature_enable pmempool_feature_enableW
+#define pmempool_feature_disable pmempool_feature_disableW
+#define pmempool_feature_query pmempool_feature_queryW
 #else
 #define pmempool_check_status pmempool_check_statusU
 #define pmempool_check_args pmempool_check_argsU
@@ -64,6 +67,9 @@
 #define pmempool_rm pmempool_rmU
 #define pmempool_check_version pmempool_check_versionU
 #define pmempool_errormsg pmempool_errormsgU
+#define pmempool_feature_enable pmempool_feature_enableU
+#define pmempool_feature_disable pmempool_feature_disableU
+#define pmempool_feature_query pmempool_feature_queryU
 #endif
 
 #endif
@@ -75,7 +81,6 @@ extern "C" {
 #include <stdint.h>
 #include <stddef.h>
 #include <limits.h>
-#include <pool_hdr.h>
 
 
 /* COMMON FLAGS */

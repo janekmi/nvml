@@ -38,64 +38,68 @@
 #include <stdint.h>
 #include <unistd.h>
 
-int
-pmempool_enable_singlehdr(char *path)
+#include "libpmempool.h"
+#include "pool.h"
+
+
+static int
+pmempool_enable_singlehdr(const char *path)
 {
 	return 0;
 }
 
-int
-pmempool_disable_singlehdr(char *path)
+static int
+pmempool_disable_singlehdr(const char *path)
 {
 	return 1;
 }
 
-int
-pmempool_query_singlehdr(char *path)
+static int
+pmempool_query_singlehdr(const char *path)
 {
 	return -1;
 }
 
-int
-pmempool_enable_checksum_2k(char *path)
+static int
+pmempool_enable_checksum_2k(const char *path)
 {
 	return 0;
 }
 
-int
-pmempool_disable_checksum_2k(char *path)
+static int
+pmempool_disable_checksum_2k(const char *path)
 {
 	return 1;
 }
 
-int
-pmempool_query_checksum_2k(char *path)
+static int
+pmempool_query_checksum_2k(const char *path)
 {
 	return -1;
 }
 
-int
-pmempool_enable_shutdown_state(char *path)
+static int
+pmempool_enable_shutdown_state(const char *path)
 {
 	return 0;
 }
 
-int
-pmempool_disable_shutdown_state(char *path)
+static int
+pmempool_disable_shutdown_state(const char *path)
 {
 	return 1;
 }
 
-int
-pmempool_query_shutdown_state(char *path)
+static int
+pmempool_query_shutdown_state(const char *path)
 {
 	return -1;
 }
 
 struct feature_funcs {
-	int (*enable)(char *);
-	int (*disable)(char *);
-	int (*query)(char *);
+	int (*enable)(const char *);
+	int (*disable)(const char *);
+	int (*query)(const char *);
 };
 
 static struct feature_funcs features[] = {
@@ -118,6 +122,9 @@ static struct feature_funcs features[] = {
 
 #define FEATURE_FUNCS_MAX ARRAY_SIZE(features)
 
+#ifndef _WIN32
+static inline
+#endif
 int
 pmempool_feature_enableU(const char *path, enum pmempool_feature f)
 {
@@ -130,6 +137,10 @@ pmempool_feature_enableU(const char *path, enum pmempool_feature f)
 
 	return features[f].enable(path);
 }
+
+#ifndef _WIN32
+static inline
+#endif
 int
 pmempool_feature_disableU(const char *path, enum pmempool_feature f)
 {
@@ -142,6 +153,10 @@ pmempool_feature_disableU(const char *path, enum pmempool_feature f)
 
 	return features[f].disable(path);
 }
+
+#ifndef _WIN32
+static inline
+#endif
 int
 pmempool_feature_queryU(const char *path, enum pmempool_feature f)
 {

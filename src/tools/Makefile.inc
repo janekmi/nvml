@@ -203,7 +203,7 @@ endif
 ifeq ($(TOOLS_COMMON), y)
 vpath %.c $(TOP)/src/tools/pmempool
 
-OBJS += common.o output.o feature.o
+OBJS += common.o output.o
 
 CFLAGS += -I$(TOP)/src/common
 CFLAGS += -I$(TOP)/src/libpmemlog

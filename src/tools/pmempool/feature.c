@@ -53,7 +53,7 @@ enum feature_op {
  */
 struct feature_ctx {
 	int verbose;
-	char *fname;
+	const char *fname;
 	enum feature_op op;
 	uint32_t feature;
 };
@@ -118,50 +118,6 @@ pmempool_feature_help(char *appname)
 	printf(help_str, appname);
 }
 
-static const char *incompat_features_str[] = {
-	"SINGLEHDR",
-	"CKSUM_2K",
-	"SHUTDOWN_STATE"
-};
-
-#define INCOMPAT_FEATURES_MAX ARRAY_SIZE(incompat_features_str)
-
-/*
- * pmempool_str2feature -- convert string to unit32_t feature
- */
-uint32_t
-pmempool_str2feature(const char *str)
-{
-	/* all features has to be named in incompat_features_str array */
-	COMPILE_ERROR_ON(POOL_FEAT_ALL >> INCOMPAT_FEATURES_MAX);
-
-	for (uint32_t f = 0; f < INCOMPAT_FEATURES_MAX; ++f) {
-		if (strcmp(str, incompat_features_str[f]) == 0) {
-			return (1u << f);
-		}
-	}
-
-	return 0;
-}
-
-/*
- * pmempool_feature2str -- convert unit32_t feature to string
- */
-const char *
-pmempool_feature2str(uint32_t *feature)
-{
-	for (uint32_t f = 0; f < INCOMPAT_FEATURES_MAX; ++f) {
-		const uint32_t feat_bit = (1u << f);
-		if (*feature & feat_bit) {
-			/* take off the flag */
-			*feature &= (uint32_t)(~(feat_bit));
-			return incompat_features_str[f];
-		}
-	}
-
-	return NULL;
-}
-
 /*
  * feature_perform -- XXX
  */
@@ -191,7 +147,7 @@ set_op(char *appname, struct feature_ctx *pfp, enum feature_op op,
 {
 	if (pfp->op == undefined) {
 		pfp->op = op;
-		pfp->feature = pmempool_str2feature(feature);
+		pfp->feature = out_str2feature(feature);
 	} else {
 		print_usage(appname);
 		exit(EXIT_FAILURE);

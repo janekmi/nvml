@@ -34,8 +34,5 @@
  * feature.h -- pmempool feature command header file
  */
 
-uint32_t pmempool_str2feature(const char *);
-const char *pmempool_feature2str(uint32_t *);
-
 int pmempool_feature_func(char *appname, int argc, char *argv[]);
 void pmempool_feature_help(char *appname);
