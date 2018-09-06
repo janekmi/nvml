@@ -37,10 +37,59 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <unistd.h>
+#include <sys/mman.h>
 
 #include "libpmempool.h"
 #include "pool.h"
 
+/*
+ * feature_set_open -- XXX
+ */
+static struct pool_set *
+feature_set_open(const char *path)
+{
+	struct pool_set *set;
+	if (util_poolset_read(&set, path)) {
+		ERR("!invalid poolset file '%s'", path);
+		return NULL;
+	}
+
+	/* readonly open */
+	if (util_replica_open(set, 0, MAP_PRIVATE | MAP_NORESERVE)) {
+		ERR("!replica open failed: replica 0");
+		util_poolset_free(set);
+		return NULL;
+	}
+
+	return set;
+}
+
+/*
+ * feature_set_close -- XXX
+ */
+static void
+feature_set_close(struct pool_set *set)
+{
+	if (util_replica_close(set, 0)) {
+		FATAL("!replica close failed: replica 0");
+	}
+
+	util_poolset_free(set);
+}
+
+/*
+ * feature_query -- XXX
+ */
+static int
+feature_query(struct pool_set *set, uint32_t feature)
+{
+	struct pool_hdr *hdrp = HDR(REP(set, 0), 0);
+	struct pool_hdr hdr;
+
+	memcpy(&hdr, hdrp, sizeof(hdr));
+	util_convert2h_hdr_nocheck(&hdr);
+	return hdr.incompat_features & feature;
+}
 
 static int
 pmempool_enable_singlehdr(const char *path)
@@ -99,7 +148,7 @@ pmempool_query_shutdown_state(const char *path)
 struct feature_funcs {
 	int (*enable)(const char *);
 	int (*disable)(const char *);
-	int (*query)(const char *);
+	int (*query)(struct pool_set *set);
 };
 
 static struct feature_funcs features[] = {
@@ -162,12 +211,21 @@ pmempool_feature_queryU(const char *path, enum pmempool_feature f)
 {
 	LOG(3, "path %s feature %x", path, f);
 
+	struct pool_set *set;
+
 	if (f >= FEATURE_FUNCS_MAX) {
 		ERR("Invalid feature argument");
 		return -1;
 	}
 
-	return features[f].query(path);
+	if ((set = feature_set_open(path)) == NULL) {
+		return -1;
+	}
+
+	int query = features[f].query(set);
+
+	feature_set_close(set);
+	return query ? 1 : 0;
 }
 
 #ifndef _WIN32
