@@ -61,10 +61,10 @@ enum question {
 	"synchronize your pool after this operation."
 
 /*
- * sds_replica_check -- (internal) check if replica is healthy
+ * sds_check_replica -- (internal) check if replica is healthy
  */
 static int
-sds_replica_check(location *loc)
+sds_check_replica(location *loc)
 {
 	LOG(3, NULL);
 
@@ -85,11 +85,7 @@ sds_replica_check(location *loc)
 	}
 
 	/* compare current and old shutdown state */
-	if (!shutdown_state_check(&curr_sds, &old_sds, NULL)) {
-		return 0; /* replica is healthy */
-	}
-
-	return -1;
+	return shutdown_state_check(&curr_sds, &old_sds, NULL);
 }
 
 /*
@@ -100,12 +96,10 @@ sds_check(PMEMpoolcheck *ppc, location *loc)
 {
 	LOG(3, NULL);
 
-	ASSERTeq(loc->part, 0);
-
 	CHECK_INFO(ppc, "%schecking shutdown state", loc->prefix);
 
 	/* shutdown state is valid */
-	if (!sds_replica_check(loc)) {
+	if (!sds_check_replica(loc)) {
 		CHECK_INFO(ppc, "%sshutdown state correct", loc->prefix);
 		loc->step = CHECK_STEP_COMPLETE;
 		return 0;
@@ -137,6 +131,7 @@ sds_fix(PMEMpoolcheck *ppc, location *loc, uint32_t question,
 	case Q_RESET_SDS:
 		CHECK_INFO(ppc, "%sresetting pool_hdr.sds", loc->prefix);
 		memset(&loc->hdr.sds, 0, sizeof(loc->hdr.sds));
+		++loc->healthy_replicas;
 		break;
 	default:
 		ERR("not implemented question id: %u", question);
@@ -176,7 +171,7 @@ step_exe(PMEMpoolcheck *ppc, const struct step *steps, location *loc)
 	if (!check_has_answer(ppc->data))
 		return 0;
 
-	if (check_answer_loop(ppc, loc, NULL, 1 /* fail on no */, step->fix))
+	if (check_answer_loop(ppc, loc, NULL, 0 /* fail on no */, step->fix))
 		return -1;
 
 	util_convert2le_hdr(&loc->hdr);
@@ -195,6 +190,8 @@ step_exe(PMEMpoolcheck *ppc, const struct step *steps, location *loc)
 static void
 init_location_data(PMEMpoolcheck *ppc, location *loc)
 {
+	ASSERTeq(loc->part, 0);
+
 	loc->set = ppc->pool->set_file->poolset;
 
 	/* prepare prefix for messages */
@@ -218,6 +215,24 @@ init_location_data(PMEMpoolcheck *ppc, location *loc)
 }
 
 /*
+ * sds_get_healthy_replicas_num -- (internal) get number of healthy replicas
+ */
+static void
+sds_get_healthy_replicas_num(PMEMpoolcheck *ppc, location *loc)
+{
+	const unsigned nreplicas = ppc->pool->set_file->poolset->nreplicas;
+	loc->healthy_replicas = 0;
+
+	for (; loc->replica < nreplicas; loc->replica++) {
+		init_location_data(ppc, loc);
+
+		if (!sds_check_replica(loc)) {
+			++loc->healthy_replicas; /* healthy replica found */
+		}
+	}
+}
+
+/*
  * check_sds -- entry point for shutdown state checks
  */
 void
@@ -226,10 +241,21 @@ check_sds(PMEMpoolcheck *ppc)
 	LOG(3, NULL);
 
 	location *loc = check_get_step_data(ppc->data);
-	unsigned nreplicas = ppc->pool->set_file->poolset->nreplicas;
+	loc->part = 0;
 
+	const unsigned nreplicas = ppc->pool->set_file->poolset->nreplicas;
+	sds_get_healthy_replicas_num(ppc, loc);
+
+	if (loc->healthy_replicas == nreplicas) {
+		/* all replicas have healthy shutdown state */
+		return;
+	} else if (loc->healthy_replicas > 0) {
+		ppc->sync_required = true;
+		return;
+	}
+
+	/* produce single healthy replica */
 	for (; loc->replica < nreplicas; loc->replica++) {
-		loc->part = 0;
 		init_location_data(ppc, loc);
 
 		while (CHECK_NOT_COMPLETE(loc, steps)) {
@@ -237,5 +263,11 @@ check_sds(PMEMpoolcheck *ppc)
 			if (step_exe(ppc, steps, loc))
 				return;
 		}
+
+		if (loc->healthy_replicas)
+			break;
 	}
+
+	if (loc->healthy_replicas < nreplicas)
+		ppc->sync_required = true;
 }

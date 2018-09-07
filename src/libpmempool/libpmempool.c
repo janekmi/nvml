@@ -412,7 +412,8 @@ enum pmempool_check_result
 pmempool_check_end(PMEMpoolcheck *ppc)
 {
 	LOG(3, NULL);
-	enum check_result result = ppc->result;
+	const enum check_result result = ppc->result;
+	const unsigned sync_required = ppc->sync_required;
 
 	check_fini(ppc);
 	free(ppc->path);
@@ -421,7 +422,10 @@ pmempool_check_end(PMEMpoolcheck *ppc)
 
 	switch (result) {
 		case CHECK_RESULT_CONSISTENT:
-			return PMEMPOOL_CHECK_RESULT_CONSISTENT;
+			if (sync_required)
+				return PMEMPOOL_CHECK_RESULT_SYNC_REQ;
+			else
+				return PMEMPOOL_CHECK_RESULT_CONSISTENT;
 
 		case CHECK_RESULT_NOT_CONSISTENT:
 			return PMEMPOOL_CHECK_RESULT_NOT_CONSISTENT;

@@ -59,5 +59,6 @@ struct pmempool_check_ctx {
 
 	struct check_data *data;
 	struct pool_data *pool;
+	unsigned sync_required;
 	enum check_result result;
 };

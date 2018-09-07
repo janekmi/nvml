@@ -79,6 +79,8 @@ typedef struct {
 	 */
 	int pool_hdr_modified;
 
+	unsigned healthy_replicas;
+
 	struct pool_hdr *next_part_hdrp;
 	struct pool_hdr *prev_part_hdrp;
 	struct pool_hdr *next_repl_hdrp;
