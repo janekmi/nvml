@@ -43,10 +43,10 @@
 
 /* operations over features */
 enum feature_op {
+	undefined,
 	enable,
 	disable,
-	query,
-	undefined
+	query
 };
 
 /*
@@ -135,12 +135,10 @@ feature_perform(struct feature_ctx *pfp)
 		return pmempool_feature_disable(pfp->fname, pfp->feature);
 	case query:
 		ret = pmempool_feature_query(pfp->fname, pfp->feature);
-		if (ret < 0) {
+		if (ret < 0)
 			return 1;
-		} else {
-			printf("%d", ret);
-			return 0;
-		}
+		printf("%d", ret);
+		return 0;
 	default:
 		ERR("Invalid option.");
 		return -1;
@@ -203,13 +201,11 @@ parse_args(struct feature_ctx *pfp, char *appname,
 		}
 	}
 
-	if (optind < argc) {
-		pfp->fname = argv[optind];
-	} else {
+	if (optind >= argc) {
 		print_usage(appname);
 		exit(EXIT_FAILURE);
 	}
-
+	pfp->fname = argv[optind];
 	return 0;
 }
 
