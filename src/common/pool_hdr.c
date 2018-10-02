@@ -218,18 +218,18 @@ util_feature_cmp(features_t features, features_t ref)
 			features.incompat, features.ro_compat, features.compat,
 			ref.incompat, ref.ro_compat, ref.compat);
 
-	uint32_t ubits = 0;	/* unsupported bits */
+	uint32_t bits = 0;
 
 	/* check incompatible ("must support") features */
-	ubits |= util_get_not_masked_bits(features.incompat, ref.incompat);
+	bits |= util_get_not_masked_bits(features.incompat, ref.incompat);
 
 	/* check RO-compatible features (force RO if unsupported) */
-	ubits |= util_get_not_masked_bits(features.ro_compat, ref.ro_compat);
+	bits |= util_get_not_masked_bits(features.ro_compat, ref.ro_compat);
 
 	/* check compatible ("may") features */
-	ubits |= util_get_not_masked_bits(features.compat, ref.compat);
+	bits |= util_get_not_masked_bits(features.compat, ref.compat);
 
-	return (ubits) ? 1 : 0;
+	return (bits) ? 1 : 0;
 }
 
 /*
@@ -238,16 +238,38 @@ util_feature_cmp(features_t features, features_t ref)
 int
 util_feature_is_zero(features_t feat)
 {
-	return util_feature_cmp(feat, feat_flags_zero) == 0;
+	return util_feature_cmp(feat, features_zero) == 0;
 }
 
-static const char *incompat_features_str[] = {
+/*
+ * util_feature_is_set -- check if feature flag is set in features
+ */
+int
+util_feature_is_set(features_t features, features_t flag)
+{
+	uint32_t bits = 0;
+	bits |= features.compat & flag.compat;
+	bits |= features.incompat & flag.incompat;
+	bits |= features.ro_compat & flag.ro_compat;
+	return (bits) ? 1 : 0;
+}
+
+static const features_t features_2_pmempool_feature_map[] = {
+	FEAT_INCOMPAT(SINGLEHDR), /* PMEMPOOL_FEAT_SINGLEHDR */
+	FEAT_INCOMPAT(CKSUM_2K), /* PMEMPOOL_FEAT_CKSUM_2K */
+	FEAT_INCOMPAT(SDS), /* PMEMPOOL_FEAT_SHUTDOWN_STATE */
+};
+
+#define FEAT_2_PMEMPOOL_FEATURE_MAP_SIZE \
+	ARRAY_SIZE(features_2_pmempool_feature_map)
+
+static const char *str_2_pmempool_feature_map[] = {
 	"SINGLEHDR",
 	"CKSUM_2K",
 	"SHUTDOWN_STATE"
 };
 
-#define INCOMPAT_FEATURES_MAX ARRAY_SIZE(incompat_features_str)
+#define PMEMPOOL_FEATURE_2_STR_MAP_SIZE ARRAY_SIZE(str_2_pmempool_feature_map)
 
 /*
  * util_str2feature -- convert string to feat_flags value
@@ -256,27 +278,16 @@ features_t
 util_str2feature(const char *str)
 {
 	/* all features have to be named in incompat_features_str array */
-	COMPILE_ERROR_ON(POOL_FEAT_INCOMPAT_ALL >> INCOMPAT_FEATURES_MAX);
+	COMPILE_ERROR_ON(FEAT_2_PMEMPOOL_FEATURE_MAP_SIZE !=
+			PMEMPOOL_FEATURE_2_STR_MAP_SIZE);
 
-	features_t features = feat_flags_zero;
-
-	for (uint32_t f = 0; f < INCOMPAT_FEATURES_MAX; ++f) {
-		if (strcmp(str, incompat_features_str[f]) == 0) {
-			features.incompat = (1u << f);
-			break;
+	for (uint32_t f = 0; f < PMEMPOOL_FEATURE_2_STR_MAP_SIZE; ++f) {
+		if (strcmp(str, str_2_pmempool_feature_map[f]) == 0) {
+			return features_2_pmempool_feature_map[f];
 		}
 	}
-	return features;
+	return features_zero;
 }
-
-static const features_t features_2_pmempool_feature_map[] = {
-	FEAT_FLAGS_INCOMPAT(SINGLEHDR), /* PMEMPOOL_FEAT_SINGLEHDR */
-	FEAT_FLAGS_INCOMPAT(CKSUM_2K), /* PMEMPOOL_FEAT_CKSUM_2K */
-	FEAT_FLAGS_INCOMPAT(SDS), /* PMEMPOOL_FEAT_SHUTDOWN_STATE */
-};
-
-#define FEAT_2_PMEMPOOL_FEAT_MAP_SIZE \
-	ARRAY_SIZE(features_2_pmempool_feature_map)
 
 /*
  * util_feature2pmempool_feature -- convert feature to pmempool_feature
@@ -284,7 +295,7 @@ static const features_t features_2_pmempool_feature_map[] = {
 uint32_t
 util_feature2pmempool_feature(features_t feat)
 {
-	for (uint32_t pf = 0; pf < FEAT_2_PMEMPOOL_FEAT_MAP_SIZE; ++pf) {
+	for (uint32_t pf = 0; pf < FEAT_2_PMEMPOOL_FEATURE_MAP_SIZE; ++pf) {
 		const features_t *record =
 				&features_2_pmempool_feature_map[pf];
 		if (util_feature_cmp(feat, *record) == 0) {
@@ -311,14 +322,13 @@ util_str2pmempool_feature(const char *str)
  * util_feature2str -- convert uint32_t feature to string
  */
 const char *
-util_feature2str(uint32_t feature, uint32_t *found)
+util_feature2str(features_t feature, features_t *found)
 {
-	for (uint32_t f = 0; f < INCOMPAT_FEATURES_MAX; ++f) {
-		const uint32_t feat_bit = (1u << f);
-		if (feature & feat_bit) {
-			if (found)
-				*found = feat_bit;
-			return incompat_features_str[f];
+	for (uint32_t f = 0; f < FEAT_2_PMEMPOOL_FEATURE_MAP_SIZE; ++f) {
+		const features_t *record = &features_2_pmempool_feature_map[f];
+		if (util_feature_is_set(feature, *record)) {
+			memcpy(found, record, sizeof(features_t));
+			return str_2_pmempool_feature_map[f];
 		}
 	}
 	return NULL;

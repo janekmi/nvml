@@ -76,7 +76,7 @@ buff_concat(size_t *pos, const char *fmt, ...)
 static int
 buff_concat_features(size_t *pos, features_t features)
 {
-	return buff_concat(pos, "{0x%x, 0x%x, 0x%x}",
+	return buff_concat(pos, "{compat 0x%x, incompat 0x%x, ro_compat 0x%x}",
 			features.compat, features.incompat, features.ro_compat);
 }
 
@@ -98,8 +98,12 @@ poolset_close(struct pool_set *set)
 	util_poolset_close(set, DO_NOT_DELETE_PARTS);
 }
 
+/* invalid features_t value */
+#define FEATURES_INVALID \
+	(features_t){UINT32_MAX, UINT32_MAX, UINT32_MAX}
+
 /*
- * features_check -- (internal) check if incompat features are correct
+ * features_check -- (internal) check if features are correct
  */
 static int
 features_check(features_t *features, struct pool_hdr *hdrp)
@@ -108,7 +112,7 @@ features_check(features_t *features, struct pool_hdr *hdrp)
 	memcpy(&hdr, hdrp, sizeof(hdr));
 	util_convert2h_hdr_nocheck(&hdr);
 
-	if (features->compat != UINT32_MAX) {
+	if (util_feature_cmp(*features, FEATURES_INVALID) != 0) {
 		if (util_feature_cmp(*features, hdr.features) != 0) {
 			size_t pos = 0;
 			if (!buff_concat_features(&pos, hdr.features))
@@ -176,7 +180,7 @@ static struct pool_set *
 poolset_open(const char *path, int rdonly)
 {
 	struct pool_set *set;
-	features_t features = {UINT32_MAX, UINT32_MAX, UINT32_MAX};
+	features_t features = FEATURES_INVALID;
 
 	/* read poolset */
 	int ret = util_poolset_create_set(&set, path, 0, 0, true);
@@ -270,101 +274,110 @@ set_hdr(struct pool_set *set, unsigned rep, unsigned part, struct pool_hdr *src)
 	util_persist_auto(PART(replica, part)->is_dev_dax, dst, sizeof(*src));
 }
 
-#define FEATURE_IS_ENABLED(set, feature) \
-	(get_hdr((set), 0, 0)->features.incompat & (feature))
-
-#define FEATURE_IS_DISABLED(set, feature) \
-	(!(get_hdr((set), 0, 0)->features.incompat & (feature)))
-
 #define FEATURE_IS_ENABLED_STR	"feature already enabled: %s"
 #define FEATURE_IS_DISABLED_STR	"feature already disabled: %s"
 
-#define FEATURE_IS_NOT_ENABLED_STR	FEATURE_IS_DISABLED_STR
-#define FEATURE_IS_NOT_DISABLED_STR	FEATURE_IS_ENABLED_STR
+#define ENABLED		1
+#define DISABLED	0
 
 /*
- * require_feature_is_(ENABLED|DISABLED) -- (internal) check if required
- * feature is enabled (or disabled)
+ * require_feature_is_not -- check if required feature is enabled / disabled
  */
-#define REQ_FEATURE_IS_X_FUNC(X) \
-static int \
-require_feature_is_##X(struct pool_set *set, uint32_t feature) \
-{ \
-	if (!FEATURE_IS_##X(set, feature)) { \
-		LOG(3, FEATURE_IS_NOT_##X##_STR, \
-				util_feature2str(feature, NULL)); \
-		return 0; \
-	} \
-	return 1; \
-}
+static int
+require_feature_is_not(struct pool_set *set, features_t feature, int unwanted)
+{
+	struct pool_hdr *hdrp = get_hdr((set), 0, 0);
+	int state = util_feature_is_set(hdrp->features, feature);
+	if (state != unwanted)
+		return 1;
 
-REQ_FEATURE_IS_X_FUNC(ENABLED)
-REQ_FEATURE_IS_X_FUNC(DISABLED)
+	const char *msg = (state == ENABLED)
+			? FEATURE_IS_ENABLED_STR : FEATURE_IS_DISABLED_STR;
+	LOG(3, msg, util_feature2str(feature, NULL));
+	return 1;
+}
 
 #define FEATURE_IS_NOT_ENABLED_PRIOR_STR	"enable %s prior to %s %s\n"
 #define FEATURE_IS_NOT_DISABLED_PRIOR_STR	"disable %s prior to %s %s\n"
-
 /*
- * require_other_feature_is_(ENABLED|DISABLED) -- (internal) check if other
- * feature is enabled (or disabled) in case the other feature has to be enabled
- * (or disabled) prior to the main one
+ * require_feature_is_not -- (internal) check if other feature is enabled
+ * (or disabled) in case the other feature has to be enabled (or disabled)
+ * prior to the main one
  */
-#define REQ_OTHER_FEATURE_IS_X_FUNC(X) \
-static int \
-require_other_feature_is_##X(struct pool_set *set, \
-		uint32_t main, uint32_t other, const char *op) \
-{ \
-	if (!FEATURE_IS_##X(set, other)) { \
-		const char *main_str = util_feature2str(main, NULL); \
-		const char *other_str = util_feature2str(other, NULL); \
-		fprintf(stderr, FEATURE_IS_NOT_##X##_PRIOR_STR, \
-				other_str, op, main_str); \
-		return 0; \
-	} \
-	return 1; \
+static int
+require_other_feature_is(struct pool_set *set, features_t other, int wanted,
+		features_t feature, const char *cause)
+{
+	struct pool_hdr *hdrp = get_hdr((set), 0, 0);
+	int state = util_feature_is_set(hdrp->features, other);
+	if (state == wanted)
+		return 1;
+
+	const char *msg = (wanted == ENABLED)
+			? FEATURE_IS_NOT_ENABLED_PRIOR_STR
+			: FEATURE_IS_NOT_DISABLED_PRIOR_STR;
+	LOG(3, msg, util_feature2str(feature, NULL), cause);
+	return 1;
 }
 
-REQ_OTHER_FEATURE_IS_X_FUNC(ENABLED)
-REQ_OTHER_FEATURE_IS_X_FUNC(DISABLED)
+#define FEATURE_ENABLE(flags, X) \
+	(flags) |= (X)
 
-#define FEATURE_ENABLE(incompat_features, feature) \
-	(incompat_features) |= (feature)
-
-#define FEATURE_DISABLE(incompat_features, feature) \
-	(incompat_features) &= ~(feature)
+#define FEATURE_DISABLE(flags, X) \
+	(flags) &= ~(X)
 
 /*
- * (ENABLE|DISABLE)_feature -- (internal) enable (or disable) feature in all
- * pool set headers
+ * feature_enable -- (internal) enable feature
  */
-#define X_FEATURE_FUNC(X) \
-static void \
-feature_##X(struct pool_set *set, uint32_t feature) \
-{ \
-	for (unsigned r = 0; r < set->nreplicas; ++r) { \
-		for (unsigned p = 0; p < REP(set, r)->nparts; ++p) { \
-			struct pool_hdr *hdrp = get_hdr(set, r, p); \
-			FEATURE_##X(hdrp->features.incompat, feature); \
-			set_hdr(set, r, p, hdrp); \
-		} \
-	} \
+static void
+feature_enable(features_t *features, features_t new_feature)
+{
+	FEATURE_ENABLE(features->compat, new_feature.compat);
+	FEATURE_ENABLE(features->incompat, new_feature.incompat);
+	FEATURE_ENABLE(features->ro_compat, new_feature.ro_compat);
 }
 
-X_FEATURE_FUNC(ENABLE)
-X_FEATURE_FUNC(DISABLE)
+/*
+ * feature_disable -- (internal) disable feature
+ */
+static void
+feature_disable(features_t *features, features_t old_feature)
+{
+	FEATURE_DISABLE(features->compat, old_feature.compat);
+	FEATURE_DISABLE(features->incompat, old_feature.incompat);
+	FEATURE_DISABLE(features->ro_compat, old_feature.ro_compat);
+}
+
+/*
+ * feature_set -- (internal) enable / disable feature
+ */
+static void
+feature_set(struct pool_set *set, features_t feature, int value)
+{
+	for (unsigned r = 0; r < set->nreplicas; ++r) {
+		for (unsigned p = 0; p < REP(set, r)->nparts; ++p) {
+			struct pool_hdr *hdrp = get_hdr(set, r, p);
+			if (value == ENABLED)
+				feature_enable(&hdrp->features, feature);
+			else
+				feature_disable(&hdrp->features, feature);
+			set_hdr(set, r, p, hdrp);
+		}
+	}
+}
 
 /*
  * query_feature -- (internal) query feature value
  */
 static int
-query_feature(const char *path, uint32_t feature)
+query_feature(const char *path, features_t feature)
 {
 	struct pool_set *set = poolset_open(path, RDONLY);
 	if (!set)
 		goto err_open;
 
 	struct pool_hdr *hdrp = get_hdr(set, 0, 0);
-	const int query = (hdrp->features.incompat & feature) ? 1 : 0;
+	const int query = util_feature_is_set(hdrp->features, feature);
 
 	poolset_close(set);
 
@@ -378,7 +391,7 @@ err_open:
  * unsupported_feature -- (internal) report unsupported feature
  */
 static inline int
-unsupported_feature(uint32_t feature)
+unsupported_feature(features_t feature)
 {
 	fprintf(stderr, "unsupported feature: %s\n",
 			util_feature2str(feature, NULL));
@@ -386,13 +399,20 @@ unsupported_feature(uint32_t feature)
 	return -1;
 }
 
+#define FEATURE_INCOMPAT(X) \
+	(features_t)FEAT_INCOMPAT(X)
+
+static const features_t f_singlehdr = FEATURE_INCOMPAT(SINGLEHDR);
+static const features_t f_cksum_2k = FEATURE_INCOMPAT(CKSUM_2K);
+static const features_t f_sds = FEATURE_INCOMPAT(SDS);
+
 /*
  * enable_singlehdr -- (internal) enable POOL_FEAT_SINGLEHDR
  */
 static int
 enable_singlehdr(const char *path)
 {
-	return unsupported_feature(POOL_FEAT_SINGLEHDR);
+	return unsupported_feature(f_singlehdr);
 }
 
 /*
@@ -401,7 +421,7 @@ enable_singlehdr(const char *path)
 static int
 disable_singlehdr(const char *path)
 {
-	return unsupported_feature(POOL_FEAT_SINGLEHDR);
+	return unsupported_feature(f_singlehdr);
 }
 
 /*
@@ -410,7 +430,7 @@ disable_singlehdr(const char *path)
 static int
 query_singlehdr(const char *path)
 {
-	return query_feature(path, POOL_FEAT_SINGLEHDR);
+	return query_feature(path, f_singlehdr);
 }
 
 /*
@@ -422,9 +442,8 @@ enable_checksum_2k(const char *path)
 	struct pool_set *set = poolset_open(path, RW);
 	if (!set)
 		return -1;
-
-	if (require_feature_is_DISABLED(set, POOL_FEAT_CKSUM_2K))
-		feature_ENABLE(set, POOL_FEAT_CKSUM_2K);
+	if (require_feature_is_not(set, f_cksum_2k, ENABLED))
+		feature_set(set, f_cksum_2k, ENABLED);
 
 	poolset_close(set);
 	return 0;
@@ -440,18 +459,19 @@ disable_checksum_2k(const char *path)
 	if (!set)
 		return -1;
 
+
 	int ret = 0;
-	if (!require_feature_is_ENABLED(set, POOL_FEAT_CKSUM_2K))
+	if (!require_feature_is_not(set, f_cksum_2k, ENABLED))
 		goto exit;
 
 	/* disable POOL_FEAT_SDS prior to disabling POOL_FEAT_CKSUM_2K */
-	if (!require_other_feature_is_DISABLED(set,
-			POOL_FEAT_CKSUM_2K, POOL_FEAT_SDS, "disabling")) {
+	if (!require_other_feature_is(set, f_sds, DISABLED,
+			f_cksum_2k, "disabling")) {
 		ret = -1;
 		goto exit;
 	}
 
-	feature_DISABLE(set, POOL_FEAT_CKSUM_2K);
+	feature_set(set, f_cksum_2k, DISABLED);
 exit:
 	poolset_close(set);
 	return ret;
@@ -463,7 +483,7 @@ exit:
 static int
 query_checksum_2k(const char *path)
 {
-	return query_feature(path, POOL_FEAT_CKSUM_2K);
+	return query_feature(path, f_cksum_2k);
 }
 
 /*
@@ -477,17 +497,17 @@ enable_shutdown_state(const char *path)
 		return -1;
 
 	int ret = 0;
-	if (!require_feature_is_DISABLED(set, POOL_FEAT_SDS))
+	if (!require_feature_is_not(set, f_sds, ENABLED))
 		goto exit;
 
 	/* enable POOL_FEAT_CKSUM_2K prior to enabling POOL_FEAT_SDS */
-	if (!require_other_feature_is_ENABLED(set,
-			POOL_FEAT_SDS, POOL_FEAT_CKSUM_2K, "enabling")) {
+	if (!require_other_feature_is(set, f_cksum_2k, ENABLED,
+			f_sds, "enabling")) {
 		ret = -1;
 		goto exit;
 	}
 
-	feature_ENABLE(set, POOL_FEAT_SDS);
+	feature_set(set, f_sds, ENABLED);
 
 exit:
 	poolset_close(set);
@@ -518,8 +538,8 @@ disable_shutdown_state(const char *path)
 	if (!set)
 		return -1;
 
-	if (require_feature_is_ENABLED(set, POOL_FEAT_SDS)) {
-		feature_DISABLE(set, POOL_FEAT_SDS);
+	if (require_feature_is_not(set, f_sds, DISABLED)) {
+		feature_set(set, f_sds, DISABLED);
 		reset_shutdown_state(set);
 	}
 
@@ -533,7 +553,7 @@ disable_shutdown_state(const char *path)
 static int
 query_shutdown_state(const char *path)
 {
-	return query_feature(path, POOL_FEAT_SDS);
+	return query_feature(path, f_sds);
 }
 
 struct feature_funcs {
@@ -619,9 +639,7 @@ pmempool_feature_queryU(const char *path, enum pmempool_feature feature)
 
 #define CHECK_INCOMPAT_MAPPING(FEAT, ENUM) \
 	COMPILE_ERROR_ON( \
-		util_feature2pmempool_feature( \
-			(features_t)FEAT_FLAGS_INCOMPAT(FEAT)) \
-		!= ENUM)
+		util_feature2pmempool_feature(FEATURE_INCOMPAT(FEAT)) != ENUM)
 
 	CHECK_INCOMPAT_MAPPING(SINGLEHDR, PMEMPOOL_FEAT_SINGLEHDR);
 	CHECK_INCOMPAT_MAPPING(CKSUM_2K, PMEMPOOL_FEAT_CKSUM_2K);

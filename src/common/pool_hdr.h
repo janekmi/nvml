@@ -158,8 +158,9 @@ features_t util_get_unknown_features(features_t features, features_t known);
 int util_feature_check(struct pool_hdr *hdrp, features_t features);
 int util_feature_cmp(features_t features, features_t ref);
 int util_feature_is_zero(features_t features);
+int util_feature_is_set(features_t features, features_t flag);
 
-const char *util_feature2str(uint32_t incompat, uint32_t *found);
+const char *util_feature2str(features_t feature, features_t *found);
 features_t util_str2feature(const char *str);
 uint32_t util_str2pmempool_feature(const char *str);
 uint32_t util_feature2pmempool_feature(features_t feat);
@@ -185,7 +186,7 @@ uint32_t util_feature2pmempool_feature(features_t feat);
 
 #define POOL_FEAT_ZERO		0x0000U
 
-static const features_t feat_flags_zero =
+static const features_t features_zero =
 	{POOL_FEAT_ZERO, POOL_FEAT_ZERO, POOL_FEAT_ZERO};
 
 /*
@@ -213,7 +214,7 @@ static const features_t feat_flags_zero =
 #define POOL_FEAT_INCOMPAT_DEFAULT \
 	(POOL_FEAT_CKSUM_2K | POOL_E_FEAT_SDS)
 
-#define FEAT_FLAGS_INCOMPAT(X) \
+#define FEAT_INCOMPAT(X) \
 	{POOL_FEAT_ZERO, POOL_FEAT_##X, POOL_FEAT_ZERO}
 
 #define POOL_FEAT_VALID \
