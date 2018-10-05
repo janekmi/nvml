@@ -445,7 +445,7 @@ killopt="-k 10s"
 runtest_timeout="3m"
 use_timeout="ok"
 testfile=all
-testseq=all
+testseq=28-35
 check_pool=0
 checktype="none"
 skip_dir=""
@@ -774,7 +774,11 @@ if [ "$1" ]; then
 	for test in $*
 	do
 		[ -d "$test" ] || echo "RUNTESTS: Test does not exist: $test"
-		[ -f "$test/TEST0" ] && runtest $test
+		[ -f "$test/TEST0" ] && {
+			while [ 1 == 1 ]; do
+				runtest $test
+			done
+		}
 	done
 else
 	# no arguments means run them all

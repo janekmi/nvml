@@ -339,15 +339,7 @@ LOCAL_TESTS = \
 	$(PMREORDER_TESTS)
 
 REMOTE_TESTS = \
-	$(OBJ_REMOTE_TESTS)\
-	$(RPMEM_TESTS)\
-	libpmempool_rm_remote\
-	remote_basic\
-	remote_obj_basic\
-	pmempool_info_remote\
-	pmempool_rm_remote\
-	pmempool_sync_remote\
-	pmempool_transform_remote
+	pmempool_sync_remote
 
 TESTS = \
 	$(LOCAL_TESTS)\
@@ -416,7 +408,7 @@ check-remote: check-remote-quiet
 	@echo "No failures."
 
 # XXX remote tests do not work in parallel mode
-pcheck: pcheck-local-quiet check-remote-quiet
+pcheck: check-remote-quiet
 	@echo "No failures."
 
 pcheck-blk: TARGET = pcheck
