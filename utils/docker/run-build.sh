@@ -47,5 +47,6 @@ export RPMEM_DISABLE_LIBIBVERBS=y
 cd $WORKDIR
 make -j2 USE_LIBUNWIND=1
 make -j2 test USE_LIBUNWIND=1
+cd src/test
 make -j2 pcheck TEST_BUILD=$TEST_BUILD
 make DESTDIR=/tmp source
