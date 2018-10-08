@@ -39,8 +39,9 @@
 #
 
 # standard unit test setup
+echo "setup"
 . ../unittest/unittest.sh
-set -x
+
 require_test_type medium
 require_fs_type any
 require_build_type debug nondebug
@@ -67,7 +68,7 @@ POOLSET_REMOTE="remote_pool.set"
 RECOVERY_FILE_P0=$DIR/${POOLSET_LOCAL}_r0_p0_badblocks.txt
 RECOVERY_FILE_P1=$DIR/${POOLSET_LOCAL}_r0_p1_badblocks.txt
 RECOVERY_FILE_P2=$DIR/${POOLSET_LOCAL}_r0_p2_badblocks.txt
-
+echo "create_poolset"
 create_poolset $DIR/$POOLSET_LOCAL \
 	10M:${NODE_DIR[0]}/pool.local.part.0:x \
 	10M:${NODE_DIR[0]}/pool.local.part.1:x \
@@ -79,25 +80,33 @@ create_poolset $DIR/$POOLSET_REMOTE \
 	30M:${NODE_DIR[1]}/pool.remote:x
 
 # create the recovery files
+echo "create_recovery_file"
 create_recovery_file $RECOVERY_FILE_P0
 create_recovery_file $RECOVERY_FILE_P1 0 8
 create_recovery_file $RECOVERY_FILE_P2
-
+echo "copy_files_to_node"
 copy_files_to_node 0 ${NODE_DIR[0]} $DIR/$POOLSET_LOCAL
 copy_files_to_node 1 ${NODE_DIR[1]} $DIR/$POOLSET_REMOTE
-
+echo "pmempool rm -sf"
 expect_normal_exit run_on_node 0 ../pmempool rm -sf ${NODE_DIR[0]}$POOLSET_LOCAL
+echo "obj_verify"
 expect_normal_exit run_on_node 0 "../obj_verify ${NODE_DIR[0]}$POOLSET_LOCAL $LAYOUT c v &>> $LOG"
 
 # inject bad block:
+echo "inject bad block"
 expect_normal_exit run_on_node 0 "dd if=/dev/zero of=${NODE_DIR[0]}/pool.local.part.1 bs=512 seek=0 count=8 conv=notrunc status=none"
 
 # copy the recovery files
+echo "copy_files_to_node"
 copy_files_to_node 0 ${NODE_DIR[0]} $RECOVERY_FILE_P0 $RECOVERY_FILE_P1 $RECOVERY_FILE_P2
 
+echo "obj_verify"
 expect_abnormal_exit run_on_node 0 "../obj_verify ${NODE_DIR[0]}$POOLSET_LOCAL $LAYOUT v &>> $LOG"
+echo "pmempool sync -v"
 expect_abnormal_exit run_on_node 0 "../pmempool sync -v ${NODE_DIR[0]}$POOLSET_LOCAL &>> $LOG"
+echo "pmempool sync -b -v"
 expect_normal_exit run_on_node 0 "../pmempool sync -b -v ${NODE_DIR[0]}$POOLSET_LOCAL &>> $LOG"
+echo "obj_verify"
 expect_normal_exit run_on_node 0 "../obj_verify ${NODE_DIR[0]}$POOLSET_LOCAL $LAYOUT v &>> $LOG"
-
+echo "pass?"
 pass
