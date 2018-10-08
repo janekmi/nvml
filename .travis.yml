@@ -21,6 +21,9 @@ env:
     - VALGRIND=1
   matrix:
     - OS=fedora OS_VER=25 PMDK_CC=clang PMDK_CXX=clang++ TEST_BUILD=debug
+    - OS=fedora OS_VER=25 PMDK_CC=clang PMDK_CXX=clang++ TEST_BUILD=debug
+    - OS=fedora OS_VER=25 PMDK_CC=clang PMDK_CXX=clang++ TEST_BUILD=debug
+    - OS=fedora OS_VER=25 PMDK_CC=clang PMDK_CXX=clang++ TEST_BUILD=debug
 
 before_install:
   - echo $TRAVIS_COMMIT_RANGE
