@@ -36,6 +36,7 @@
 TARGET = obj_sds
 OBJS = obj_sds.o
 
+LIBPMEMPOOL=y
 LIBPMEMOBJ=internal-debug
 include ../Makefile.inc
 LDFLAGS += $(call extract_funcs, obj_sds.c)
