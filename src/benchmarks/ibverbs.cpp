@@ -62,7 +62,7 @@ enum memory_source {
 	memory_source_max
 };
 
-const char *memory_source_str[] = {
+static const char *memory_source_str[] = {
 	"malloc",
 	"file"
 };

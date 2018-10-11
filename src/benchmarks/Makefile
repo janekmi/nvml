@@ -144,7 +144,7 @@ LDFLAGS += -fsanitize=$(SANITIZE)
 endif
 
 ifeq ($(BUILD_RPMEM),y)
-SRC += rpmem_persist.cpp
+SRC += rpmem_persist.cpp libfabric.cpp
 LIBS += -lrpmem $(shell pkg-config --libs libfabric)
 CONFIGS += pmembench_rpmem
 CXXFLAGS += -DRPMEM_AVAILABLE
