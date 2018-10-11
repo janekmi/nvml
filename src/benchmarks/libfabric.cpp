@@ -236,7 +236,8 @@ libfabric_dereg_mrs(struct libfabric_bench *mb, struct benchmark_args *args)
 static void
 libfabric_close(struct libfabric_bench *mb, struct benchmark_args *args)
 {
-	/* XXX */
+	fi_close(&mb->domain->fid);
+	fi_close(&mb->fabric->fid);
 }
 
 /*
