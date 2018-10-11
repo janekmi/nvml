@@ -429,7 +429,7 @@ pmem_libfabric(void)
 	ibverbs_clo[1].type = CLO_TYPE_STR;
 
 	ibverbs_clo[2].opt_short = 'm';
-	ibverbs_clo[2].opt_long = "node";
+	ibverbs_clo[2].opt_long = "provider";
 	ibverbs_clo[2].descr = "provider name";
 	ibverbs_clo[2].def = "verbs";
 	ibverbs_clo[2].off = clo_field_offset(struct libfabric_args, provider);
