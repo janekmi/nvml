@@ -38,9 +38,11 @@
 #include <string.h>
 #include <errno.h>
 #include <stdint.h>
+#include <inttypes.h>
 
 #include "out.h"
 #include "os.h"
+#include "os_thread.h"
 #include "librpmem.h"
 #include "rpmem_proto.h"
 #include "rpmem_common.h"
@@ -247,4 +249,83 @@ rpmem_util_get_env_max_nlanes(unsigned *max_nlanes)
 			*max_nlanes = (unsigned)nlanes;
 		}
 	}
+}
+
+static uint64_t stats[RPMEM_STATS_MAX] = {0};
+static os_mutex_t stats_lock;
+
+static const char *rpmem_stats_desc[RPMEM_STATS_MAX] = {
+	/* RPMEM_STATS_PERSIST_STRICT = */ "rpmem_persist(strict)",
+	/* RPMEM_STATS_PERSIST_RELAXED = */ "rpmem_persist(relaxed)",
+	/* RPMEM_STATS_PERSIST_STRICT_LENGTH = */ "rpmem_persist avg length(strict)",
+	/* RPMEM_STATS_PERSIST_RELAXED_LENGTH = */ "rpmem_persist avg length(relaxed)"
+};
+
+/*
+ * rpmem_stats_init -- initialize statistic collection
+ */
+void
+rpmem_stats_init()
+{
+	os_mutex_init(&stats_lock);
+}
+
+/*
+ * rpmem_stats_fini -- statistic cleanup
+ */
+void
+rpmem_stats_fini()
+{
+	rpmem_stats_reset();
+	os_mutex_destroy(&stats_lock);
+}
+
+/*
+ * rpmem_stats_inc -- increment statistic
+ */
+void
+rpmem_stats_inc(enum rpmem_stats stat)
+{
+	ASSERT(stat < RPMEM_STATS_MAX);
+
+	os_mutex_lock(&stats_lock);
+	++stats[stat];
+	os_mutex_unlock(&stats_lock);
+}
+
+/*
+ * rpmem_stats_add -- add to statistic
+ */
+void
+rpmem_stats_add(enum rpmem_stats stat, uint64_t b)
+{
+	ASSERT(stat < RPMEM_STATS_MAX);
+
+	os_mutex_lock(&stats_lock);
+	stats[stat] += b;
+	os_mutex_unlock(&stats_lock);
+}
+
+
+/*
+ * rpmem_stats_reset -- reset stats and print results
+ */
+void
+rpmem_stats_reset()
+{
+	os_mutex_lock(&stats_lock);
+	/* average */
+	if (stats[RPMEM_STATS_PERSIST_STRICT]) {
+		stats[RPMEM_STATS_PERSIST_STRICT_LENGTH] /= stats[RPMEM_STATS_PERSIST_STRICT];
+	}
+	if (stats[RPMEM_STATS_PERSIST_RELAXED]) {
+		stats[RPMEM_STATS_PERSIST_RELAXED_LENGTH] /= stats[RPMEM_STATS_PERSIST_RELAXED];
+	}
+	/* print and reset */
+	for (int i = 0; i < RPMEM_STATS_MAX; ++i) {
+		LOG(3, "%s: %" PRIu64, rpmem_stats_desc[i], stats[i]);
+		stats[i] = 0;
+	}
+	os_mutex_unlock(&stats_lock);
+	os_mutex_destroy(&stats_lock);
 }

@@ -60,6 +60,7 @@ librpmem_init(void)
 			RPMEM_MAJOR_VERSION, RPMEM_MINOR_VERSION);
 	LOG(3, NULL);
 	rpmem_util_cmds_init();
+	rpmem_stats_init();
 
 	rpmem_util_get_env_max_nlanes(&Rpmem_max_nlanes);
 	rpmem_fip_probe_fork_safety(&Rpmem_fork_unsafe);
@@ -77,6 +78,7 @@ void
 librpmem_fini(void)
 {
 	LOG(3, NULL);
+	rpmem_stats_fini();
 	rpmem_util_cmds_fini();
 	out_fini();
 }

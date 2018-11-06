@@ -644,8 +644,14 @@ rpmem_persist(RPMEMpool *rpp, size_t offset, size_t length,
 	 * guarantees. For relaxed persist use RDMA WRITE.
 	 */
 	unsigned mode = RPMEM_PERSIST_SEND;
-	if (flags & RPMEM_PERSIST_RELAXED)
+	if (flags & RPMEM_PERSIST_RELAXED) {
 		mode = RPMEM_PERSIST_WRITE;
+		rpmem_stats_inc(RPMEM_STATS_PERSIST_RELAXED);
+		rpmem_stats_add(RPMEM_STATS_PERSIST_RELAXED_LENGTH, length);
+	} else {
+		rpmem_stats_inc(RPMEM_STATS_PERSIST_STRICT);
+		rpmem_stats_add(RPMEM_STATS_PERSIST_STRICT_LENGTH, length);
+	}
 
 	int ret = rpmem_fip_persist(rpp->fip, offset, length,
 			lane, mode);
@@ -825,4 +831,14 @@ err_ssh_exec:
 	rpmem_target_free(info);
 err_target:
 	return -1;
+}
+
+/*
+ * rpmem_reset_stats -- XXX
+ */
+void
+rpmem_reset_stats(const char *desc)
+{
+	LOG(3, "desc %s", desc);
+	rpmem_stats_reset();
 }

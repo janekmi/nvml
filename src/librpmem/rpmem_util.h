@@ -65,6 +65,20 @@ void rpmem_util_cmds_fini(void);
 const char *rpmem_util_cmd_get(void);
 void rpmem_util_get_env_max_nlanes(unsigned *max_nlanes);
 
+enum rpmem_stats {
+	RPMEM_STATS_PERSIST_STRICT,
+	RPMEM_STATS_PERSIST_RELAXED,
+	RPMEM_STATS_PERSIST_STRICT_LENGTH,
+	RPMEM_STATS_PERSIST_RELAXED_LENGTH,
+	RPMEM_STATS_MAX
+};
+
+void rpmem_stats_init(void);
+void rpmem_stats_fini(void);
+void rpmem_stats_inc(enum rpmem_stats stat);
+void rpmem_stats_add(enum rpmem_stats stat, uint64_t b);
+void rpmem_stats_reset(void);
+
 #ifdef __cplusplus
 }
 #endif

@@ -94,6 +94,8 @@ int rpmem_deep_persist(RPMEMpool *rpp, size_t offset, size_t length,
 
 int rpmem_remove(const char *target, const char *pool_set, int flags);
 
+void rpmem_reset_stats(const char *desc);
+
 /*
  * RPMEM_MAJOR_VERSION and RPMEM_MINOR_VERSION provide the current version of
  * the librpmem API as provided by this header file.  Applications can verify

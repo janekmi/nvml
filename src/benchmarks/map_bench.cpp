@@ -41,6 +41,8 @@
 #include "os_thread.h"
 #include "poolset_util.hpp"
 
+#include "librpmem.h"
+
 #include "map.h"
 #include "map_btree.h"
 #include "map_ctree.h"
@@ -601,6 +603,9 @@ map_common_init(struct benchmark *bench, struct benchmark_args *args)
 
 	map_bench->map = D_RO(map_bench->root)->map;
 
+	/* print init stats and reset */
+	rpmem_reset_stats("init");
+
 	pmembench_set_priv(bench, map_bench);
 	return 0;
 err_free_map:
@@ -622,10 +627,17 @@ map_common_exit(struct benchmark *bench, struct benchmark_args *args)
 {
 	auto *tree = (struct map_bench *)pmembench_get_priv(bench);
 
+	/* print workload stats and reset */
+	rpmem_reset_stats("workload");
+
 	os_mutex_destroy(&tree->lock);
 	map_ctx_free(tree->mapc);
 	pmemobj_close(tree->pop);
 	free(tree);
+
+	/* print fini stats and reset */
+	rpmem_reset_stats("fini");
+
 	return 0;
 }
 
