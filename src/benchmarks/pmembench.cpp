@@ -1165,8 +1165,9 @@ pmembench_single_repeat(struct benchmark *bench, struct benchmark_args *args,
 
 	if (bench->info->rm_file && !args->is_dynamic_poolset) {
 		ret = pmembench_remove_file(args->fname);
-		if (ret != 0) {
+		if (ret != 0 && errno != ENOENT) {
 			perror("removing file failed");
+
 			return ret;
 		}
 	}
