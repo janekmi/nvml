@@ -527,6 +527,8 @@ rpmem_init(struct benchmark *bench, struct benchmark_args *args)
 
 	if (mb->pargs->relaxed)
 		mb->flags |= RPMEM_PERSIST_RELAXED;
+	if (mb->pargs->flush)
+		mb->flags |= RPMEM_FLUSH;
 
 	enum operation_mode op_mode = parse_op_mode(mb->pargs->mode);
 	if (op_mode == OP_MODE_UNKNOWN) {
