@@ -54,7 +54,7 @@ enum {
 #define RPMEM_FATAL(fmt, args...) FATAL(fmt, ## args)
 #define RPMEM_ASSERT(cond)	ASSERT(cond)
 
-#define RPMEM_FLAGS_ALL		RPMEM_PERSIST_RELAXED
+#define RPMEM_FLAGS_ALL		(RPMEM_PERSIST_RELAXED | RPMEM_FLUSH)
 #define RPMEM_FLAGS_MASK	((unsigned)(~RPMEM_FLAGS_ALL))
 
 const char *rpmem_util_proto_errstr(enum rpmem_err err);
