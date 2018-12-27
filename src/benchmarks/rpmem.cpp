@@ -581,7 +581,8 @@ rpmem_exit(struct benchmark *bench, struct benchmark_args *args)
 
 static struct benchmark_clo rpmem_clo[7];
 /* Stores information about benchmark. */
-static struct benchmark_info rpmem_info;
+static struct benchmark_info rpmem_persist_info;
+static struct benchmark_info rpmem_flush_info;
 CONSTRUCTOR(rpmem_constructor)
 void
 rpmem_constructor(void)
@@ -647,25 +648,26 @@ rpmem_constructor(void)
 	rpmem_clo[6].type_uint.min = 0;
 	rpmem_clo[6].type_uint.max = MAX_OFFSET;
 
-	rpmem_info.name = "rpmem_persist";
-	rpmem_info.brief = "Benchmark for rpmem_persist() operation";
-	rpmem_info.init = rpmem_init;
-	rpmem_info.exit = rpmem_exit;
-	rpmem_info.multithread = true;
-	rpmem_info.multiops = true;
-	rpmem_info.operation = rpmem_persist_op;
-	rpmem_info.measure_time = true;
-	rpmem_info.clos = rpmem_clo;
-	rpmem_info.nclos = ARRAY_SIZE(rpmem_clo);
-	rpmem_info.opts_size = sizeof(struct rpmem_args);
-	rpmem_info.rm_file = true;
-	rpmem_info.allow_poolset = true;
-	rpmem_info.print_bandwidth = true;
-	REGISTER_BENCHMARK(rpmem_info);
+	rpmem_persist_info.name = "rpmem_persist";
+	rpmem_persist_info.brief = "Benchmark for rpmem_persist() operation";
+	rpmem_persist_info.init = rpmem_init;
+	rpmem_persist_info.exit = rpmem_exit;
+	rpmem_persist_info.multithread = true;
+	rpmem_persist_info.multiops = true;
+	rpmem_persist_info.operation = rpmem_persist_op;
+	rpmem_persist_info.measure_time = true;
+	rpmem_persist_info.clos = rpmem_clo;
+	rpmem_persist_info.nclos = ARRAY_SIZE(rpmem_clo);
+	rpmem_persist_info.opts_size = sizeof(struct rpmem_args);
+	rpmem_persist_info.rm_file = true;
+	rpmem_persist_info.allow_poolset = true;
+	rpmem_persist_info.print_bandwidth = true;
+	REGISTER_BENCHMARK(rpmem_persist_info);
 
-	rpmem_info.name = "rpmem_flush_drain";
-	rpmem_info.brief =
+	memcpy(&rpmem_flush_info, &rpmem_persist_info, sizeof(rpmem_flush_info));
+	rpmem_flush_info.name = "rpmem_flush";
+	rpmem_flush_info.brief =
 		"Benchmark for rpmem_flush() and rpmem_drain() operation";
-	rpmem_info.operation = rpmem_flush_drain_op;
-	REGISTER_BENCHMARK(rpmem_info);
+	rpmem_flush_info.operation = rpmem_flush_drain_op;
+	REGISTER_BENCHMARK(rpmem_flush_info);
 };
