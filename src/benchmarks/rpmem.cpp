@@ -31,7 +31,7 @@
  */
 
 /*
- * rpmem_persist.cpp -- rpmem persist benchmarks definition
+ * rpmem.cpp -- rpmem benchmarks definition
  */
 
 #include <cassert>
@@ -61,12 +61,14 @@
  * rpmem_args -- benchmark specific command line options
  */
 struct rpmem_args {
-	char *mode;	/* operation mode: stat, seq, rand */
-	bool no_warmup;    /* do not do warmup */
-	bool no_memset;    /* do not call memset before each persist */
-	size_t chunk_size; /* elementary chunk size */
-	size_t dest_off;   /* destination address offset */
-	bool relaxed;      /* use RPMEM_PERSIST_RELAXED flag */
+	char *mode;		 /* operation mode: stat, seq, rand */
+	bool no_warmup;		 /* do not do warmup */
+	bool no_memset;		 /* do not call memset before each persist */
+	size_t chunk_size;       /* elementary chunk size */
+	size_t dest_off;	 /* destination address offset */
+	unsigned num_of_flushes; /* destination address offset */
+	bool relaxed;		 /* use RPMEM_PERSIST_RELAXED flag */
+	bool flush;		 /* use RPMEM_OP_FLUSH flag */
 };
 
 /*
@@ -208,10 +210,64 @@ do_warmup(struct rpmem_bench *mb)
 }
 
 /*
- * rpmem_op -- actual benchmark operation
+ * rpmem_flush_drain_op -- actual benchmark operation
  */
 static int
-rpmem_op(struct benchmark *bench, struct operation_info *info)
+rpmem_flush_drain_op(struct benchmark *bench, struct operation_info *info)
+{
+	auto *mb = (struct rpmem_bench *)pmembench_get_priv(bench);
+
+	uint64_t idx = info->worker->index * info->args->n_ops_per_thread +
+		info->index;
+
+	assert(idx < mb->n_offsets);
+
+	size_t offset = mb->offsets[idx];
+	size_t len = mb->pargs->chunk_size;
+
+	if (!mb->pargs->no_memset) {
+		void *dest = (char *)mb->pool + offset;
+		/* thread id on MS 4 bits and operation id on LS 4 bits */
+		int c = ((info->worker->index & 0xf) << 4) +
+			((0xf & info->index));
+		memset(dest, c, len);
+	}
+
+	int ret = 0;
+	for (unsigned r = 0; r < mb->nreplicas; ++r) {
+		assert(info->worker->index < mb->nlanes[r]);
+
+		ret = rpmem_flush(mb->rpp[r], offset, len, info->worker->index,
+				  mb->flags);
+		if (unlikely(ret)) {
+			fprintf(stderr, "rpmem_persist replica #%u: %s\n", r,
+				rpmem_errormsg());
+			return ret;
+		}
+	}
+
+	/* perform rpmem_drain after a certain num_of_flushes */
+	if ((info->index + 1) % mb->pargs->num_of_flushes)
+		return 0;
+
+	for (unsigned r = 0; r < mb->nreplicas; ++r) {
+		ret = rpmem_drain(mb->rpp[r], info->worker->index);
+
+		if (unlikely(ret)) {
+			fprintf(stderr, "rpmem_drain replica #%u: %s\n", r,
+				rpmem_errormsg());
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+/*
+ * rpmem_persist_op -- actual benchmark operation
+ */
+static int
+rpmem_persist_op(struct benchmark *bench, struct operation_info *info)
 {
 	auto *mb = (struct rpmem_bench *)pmembench_get_priv(bench);
 
@@ -237,7 +293,7 @@ rpmem_op(struct benchmark *bench, struct operation_info *info)
 
 		ret = rpmem_persist(mb->rpp[r], offset, len,
 				    info->worker->index, mb->flags);
-		if (ret) {
+		if (unlikely(ret)) {
 			fprintf(stderr, "rpmem_persist replica #%u: %s\n", r,
 				rpmem_errormsg());
 			return ret;
@@ -523,14 +579,13 @@ rpmem_exit(struct benchmark *bench, struct benchmark_args *args)
 	return 0;
 }
 
-static struct benchmark_clo rpmem_clo[5];
+static struct benchmark_clo rpmem_clo[7];
 /* Stores information about benchmark. */
 static struct benchmark_info rpmem_info;
-CONSTRUCTOR(rpmem_persist_constructor)
+CONSTRUCTOR(rpmem_constructor)
 void
-pmem_rpmem_persist(void)
+rpmem_constructor(void)
 {
-
 	rpmem_clo[0].opt_short = 'M';
 	rpmem_clo[0].opt_long = "mem-mode";
 	rpmem_clo[0].descr = "Memory writing mode :"
@@ -559,7 +614,7 @@ pmem_rpmem_persist(void)
 	rpmem_clo[2].type = CLO_TYPE_FLAG;
 	rpmem_clo[2].off = clo_field_offset(struct rpmem_args, no_warmup);
 
-	rpmem_clo[3].opt_short = 'T';
+	rpmem_clo[3].opt_short = 0;
 	rpmem_clo[3].opt_long = "no-memset";
 	rpmem_clo[3].descr = "Don't call memset for all rpmem_persist";
 	rpmem_clo[3].def = "false";
@@ -573,14 +628,32 @@ pmem_rpmem_persist(void)
 	rpmem_clo[4].off = clo_field_offset(struct rpmem_args, relaxed);
 	rpmem_clo[4].type = CLO_TYPE_FLAG;
 
+	rpmem_clo[5].opt_short = 0;
+	rpmem_clo[5].opt_long = "flush";
+	rpmem_clo[5].descr = "Use RPMEM_FLUSH flag";
+	rpmem_clo[5].def = "false";
+	rpmem_clo[5].off = clo_field_offset(struct rpmem_args, flush);
+	rpmem_clo[5].type = CLO_TYPE_FLAG;
+
+	rpmem_clo[6].opt_short = 0;
+	rpmem_clo[6].opt_long = "num-of-flushes-before-drain";
+	rpmem_clo[6].descr = "Number of rpmem_flush() before rpmem_drain()";
+	rpmem_clo[6].def = "1";
+	rpmem_clo[6].off = clo_field_offset(struct rpmem_args, num_of_flushes);
+	rpmem_clo[6].type = CLO_TYPE_UINT;
+	rpmem_clo[6].type_uint.size =
+		clo_field_size(struct rpmem_args, num_of_flushes);
+	rpmem_clo[6].type_uint.base = CLO_INT_BASE_DEC;
+	rpmem_clo[6].type_uint.min = 0;
+	rpmem_clo[6].type_uint.max = MAX_OFFSET;
+
 	rpmem_info.name = "rpmem_persist";
-	rpmem_info.brief = "Benchmark for rpmem_persist() "
-			   "operation";
+	rpmem_info.brief = "Benchmark for rpmem_persist() operation";
 	rpmem_info.init = rpmem_init;
 	rpmem_info.exit = rpmem_exit;
 	rpmem_info.multithread = true;
 	rpmem_info.multiops = true;
-	rpmem_info.operation = rpmem_op;
+	rpmem_info.operation = rpmem_persist_op;
 	rpmem_info.measure_time = true;
 	rpmem_info.clos = rpmem_clo;
 	rpmem_info.nclos = ARRAY_SIZE(rpmem_clo);
@@ -588,5 +661,11 @@ pmem_rpmem_persist(void)
 	rpmem_info.rm_file = true;
 	rpmem_info.allow_poolset = true;
 	rpmem_info.print_bandwidth = true;
+	REGISTER_BENCHMARK(rpmem_info);
+
+	rpmem_info.name = "rpmem_flush_drain";
+	rpmem_info.brief =
+		"Benchmark for rpmem_flush() and rpmem_drain() operation";
+	rpmem_info.operation = rpmem_flush_drain_op;
 	REGISTER_BENCHMARK(rpmem_info);
 };
