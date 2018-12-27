@@ -295,13 +295,25 @@ rpmem_persist_op(struct benchmark *bench, struct operation_info *info)
 		memset(dest, c, len);
 	}
 
-	int ret = 0;
+	int ret = 0, oret;
+	bool drain_done = false;
 	for (unsigned r = 0; r < mb->nreplicas; ++r) {
 		assert(info->worker->index < mb->nlanes[r]);
-
+		drain_done = false;
+retry:
 		ret = rpmem_persist(mb->rpp[r], offset, len,
 				    info->worker->index, mb->flags);
 		if (unlikely(ret)) {
+			if (ret == -EAGAIN && (mb->flags | RPMEM_FLUSH)
+					&& !drain_done) {
+				oret = ret;
+				drain_done = true;
+				ret = rpmem_drain(mb->rpp[r],
+						info->worker->index);
+				if (!ret)
+					goto retry;
+				ret = oret;
+			}
 			fprintf(stderr, "rpmem_persist replica #%u: %s\n", r,
 				rpmem_errormsg());
 			return ret;
