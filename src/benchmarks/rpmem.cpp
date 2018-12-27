@@ -200,6 +200,14 @@ do_warmup(struct rpmem_bench *mb)
 			return ret;
 	}
 
+	if (mb->flags & RPMEM_FLUSH) {
+		for (unsigned r = 0; r < mb->nreplicas; ++r) {
+			int ret = rpmem_drain(mb->rpp[r], 0);
+			if (ret)
+				return ret;
+		}
+	}
+
 	/* if no memset for each operation, do one big memset */
 	if (mb->pargs->no_memset) {
 		memset((char *)mb->pool + POOL_HDR_SIZE, 0xFF,
