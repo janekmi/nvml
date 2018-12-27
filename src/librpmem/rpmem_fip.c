@@ -103,7 +103,6 @@ cq_read_infinite(struct fid_cq *cq, void *buf, size_t count)
  */
 struct rpmem_fip_ops {
 	rpmem_fip_persist_fn persist;
-	rpmem_fip_process_fn process;
 	rpmem_fip_init_fn lanes_init;
 	rpmem_fip_init_fn lanes_init_mem;
 	rpmem_fip_fini_fn lanes_fini;
@@ -952,15 +951,13 @@ rpmem_fip_fini_lanes_apm(struct rpmem_fip *fip)
  */
 static int
 rpmem_fip_persist_raw(struct rpmem_fip *fip, size_t offset,
-	size_t len, unsigned lane)
+	size_t len, unsigned lane, unsigned flags)
 {
 	struct rpmem_fip_plane *lanep = &fip->lanes[lane];
 
 	int ret;
 	void *laddr = (void *)((uintptr_t)fip->laddr + offset);
 	uint64_t raddr = fip->raddr + offset;
-
-	rpmem_fip_lane_begin(&lanep->base, FI_READ);
 
 	/* WRITE for requested memory region */
 	ret = rpmem_fip_writemsg(lanep->base.ep,
@@ -969,6 +966,11 @@ rpmem_fip_persist_raw(struct rpmem_fip *fip, size_t offset,
 		RPMEM_FI_ERR(ret, "RMA write");
 		return ret;
 	}
+
+	if (flags & RPMEM_OP_FLUSH)
+		return ret;
+
+	rpmem_fip_lane_begin(&lanep->base, FI_READ);
 
 	/* READ to read-after-write buffer */
 	ret = rpmem_fip_readmsg(lanep->base.ep, &lanep->read, fip->raw_buff,
@@ -1153,7 +1155,7 @@ rpmem_fip_persist_apm_sockets(struct rpmem_fip *fip, size_t offset,
 	/* Limit len to the max value of the return type. */
 	len = min(len, SSIZE_MAX);
 
-	int ret = rpmem_fip_persist_raw(fip, offset, len, lane);
+	int ret = rpmem_fip_persist_raw(fip, offset, len, lane, flags);
 	if (ret)
 		return -abs(ret);
 	return (ssize_t)len;
@@ -1201,7 +1203,7 @@ rpmem_fip_persist_apm(struct rpmem_fip *fip, size_t offset,
 		len = min(len, fip->buff_size);
 		ret = rpmem_fip_persist_send(fip, offset, len, lane, flags);
 	} else {
-		ret = rpmem_fip_persist_raw(fip, offset, len, lane);
+		ret = rpmem_fip_persist_raw(fip, offset, len, lane, flags);
 	}
 
 	if (ret)
@@ -1409,6 +1411,43 @@ close_monitor:
 		lret = ret;
 
 	return lret;
+}
+
+/*
+ * rpmem_fip_drain -- perform remote drain operation
+ */
+int
+rpmem_fip_drain(struct rpmem_fip *fip, unsigned lane)
+{
+	if (unlikely(rpmem_fip_is_closing(fip)))
+		return ECONNRESET; /* it will be passed to errno */
+
+	RPMEM_ASSERT(lane < fip->nlanes);
+	if (unlikely(lane >= fip->nlanes))
+		return EINVAL; /* it will be passed to errno */
+
+	struct rpmem_fip_plane *lanep = &fip->lanes[lane];
+	rpmem_fip_lane_begin(&lanep->base, FI_READ);
+
+	/* READ to read-after-write buffer */
+	int ret = rpmem_fip_readmsg(lanep->base.ep, &lanep->read, fip->raw_buff,
+			RPMEM_RAW_SIZE, fip->raddr);
+	if (unlikely(ret)) {
+		RPMEM_FI_ERR(ret, "RMA read");
+		return ret;
+	}
+
+	/* wait for READ completion */
+	ret = rpmem_fip_lane_wait(fip, &lanep->base, FI_READ);
+	if (unlikely(ret)) {
+		ERR("waiting for READ completion failed");
+		return ret;
+	}
+
+	if (unlikely(rpmem_fip_is_closing(fip)))
+		return ECONNRESET; /* it will be passed to errno */
+
+	return ret;
 }
 
 /*

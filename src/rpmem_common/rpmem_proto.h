@@ -230,6 +230,8 @@ struct rpmem_msg_close_resp {
  */
 #define RPMEM_PERSIST_MASK	0x3U
 
+#define RPMEM_OP_FLUSH		4U	/* flush only */
+
 /*
  * rpmem_msg_persist -- remote persist message
  */
