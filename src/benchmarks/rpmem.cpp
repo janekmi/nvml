@@ -304,7 +304,7 @@ retry:
 		ret = rpmem_persist(mb->rpp[r], offset, len,
 				    info->worker->index, mb->flags);
 		if (unlikely(ret)) {
-			if (ret == -EAGAIN && (mb->flags | RPMEM_FLUSH)
+			if (errno == -EAGAIN && (mb->flags | RPMEM_FLUSH)
 					&& !drain_done) {
 				oret = ret;
 				drain_done = true;
