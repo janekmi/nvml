@@ -977,6 +977,7 @@ rpmem_fip_flush_raw(struct rpmem_fip *fip, size_t offset,
 			ERR("waiting for WRITE completion failed");
 			return ret;
 		}
+		lanep->base.write_cq_pending = 0;
 	}
 
 	/* WRITE for requested memory region */
@@ -1505,6 +1506,7 @@ rpmem_fip_drain(struct rpmem_fip *fip, unsigned lane)
 			ERR("waiting for WRITE completion failed");
 			return ret;
 		}
+		lanep->base.write_cq_pending = 0;
 	}
 
 	rpmem_fip_lane_begin(&lanep->base, FI_READ);
