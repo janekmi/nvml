@@ -1494,6 +1494,7 @@ rpmem_fip_drain(struct rpmem_fip *fip, unsigned lane)
 		return EINVAL; /* it will be passed to errno */
 
 	struct rpmem_fip_plane *lanep = &fip->lanes[lane];
+	int ret;
 
 	if (lanep->base.write_cq_pending) {
 		rpmem_fip_lane_begin(&lanep->base, FI_WRITE);
@@ -1509,7 +1510,7 @@ rpmem_fip_drain(struct rpmem_fip *fip, unsigned lane)
 	rpmem_fip_lane_begin(&lanep->base, FI_READ);
 
 	/* READ to read-after-write buffer */
-	int ret = rpmem_fip_readmsg(lanep->base.ep, &lanep->read, fip->raw_buff,
+	ret = rpmem_fip_readmsg(lanep->base.ep, &lanep->read, fip->raw_buff,
 			RPMEM_RAW_SIZE, fip->raddr);
 	if (unlikely(ret)) {
 		RPMEM_FI_ERR(ret, "RMA read");
