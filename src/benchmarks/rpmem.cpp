@@ -667,8 +667,8 @@ rpmem_constructor(void)
 	rpmem_clo[6].type_uint.size =
 		clo_field_size(struct rpmem_args, num_of_flushes);
 	rpmem_clo[6].type_uint.base = CLO_INT_BASE_DEC;
-	rpmem_clo[6].type_uint.min = 0;
-	rpmem_clo[6].type_uint.max = MAX_OFFSET;
+	rpmem_clo[6].type_uint.min = 1;
+	rpmem_clo[6].type_uint.max = UINT_MAX;
 
 	rpmem_persist_info.name = "rpmem_persist";
 	rpmem_persist_info.brief = "Benchmark for rpmem_persist() operation";
