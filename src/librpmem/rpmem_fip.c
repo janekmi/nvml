@@ -117,6 +117,7 @@ struct rpmem_fip_lane {
 	struct fid_ep *ep;		/* endpoint */
 	struct fid_cq *cq;		/* completion queue */
 	uint64_t event;
+	int write_cq_pending;	/* WRITE message CQ entry pending */
 };
 
 /*
@@ -967,6 +968,17 @@ rpmem_fip_flush_raw(struct rpmem_fip *fip, size_t offset,
 	void *laddr = (void *)((uintptr_t)fip->laddr + offset);
 	uint64_t raddr = fip->raddr + offset;
 
+	if (lanep->base.write_cq_pending) {
+		rpmem_fip_lane_begin(&lanep->base, FI_WRITE);
+
+		/* wait for WRITE completion */
+		ret = rpmem_fip_lane_wait(fip, &lanep->base, FI_WRITE);
+		if (unlikely(ret)) {
+			ERR("waiting for WRITE completion failed");
+			return ret;
+		}
+	}
+
 	/* WRITE for requested memory region */
 	ret = rpmem_fip_writemsg(lanep->base.ep,
 			&lanep->write2, laddr, len, raddr);
@@ -975,14 +987,7 @@ rpmem_fip_flush_raw(struct rpmem_fip *fip, size_t offset,
 		return ret;
 	}
 
-	rpmem_fip_lane_begin(&lanep->base, FI_WRITE);
-
-	/* wait for WRITE completion */
-	ret = rpmem_fip_lane_wait(fip, &lanep->base, FI_WRITE);
-	if (unlikely(ret)) {
-		ERR("waiting for WRITE completion failed");
-		return ret;
-	}
+	lanep->base.write_cq_pending = 1;
 
 	return ret;
 }
@@ -1489,6 +1494,18 @@ rpmem_fip_drain(struct rpmem_fip *fip, unsigned lane)
 		return EINVAL; /* it will be passed to errno */
 
 	struct rpmem_fip_plane *lanep = &fip->lanes[lane];
+
+	if (lanep->base.write_cq_pending) {
+		rpmem_fip_lane_begin(&lanep->base, FI_WRITE);
+
+		/* wait for WRITE completion */
+		ret = rpmem_fip_lane_wait(fip, &lanep->base, FI_WRITE);
+		if (unlikely(ret)) {
+			ERR("waiting for WRITE completion failed");
+			return ret;
+		}
+	}
+
 	rpmem_fip_lane_begin(&lanep->base, FI_READ);
 
 	/* READ to read-after-write buffer */
