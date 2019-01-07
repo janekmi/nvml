@@ -1539,7 +1539,7 @@ rpmem_fip_flush(struct rpmem_fip *fip, size_t offset, size_t len,
 	while (len > 0) {
 		size_t tmplen = min(len, fip->fi->ep_attr->max_msg_size);
 
-		ssize_t r = fip->ops->persist(fip, offset, tmplen, lane, flags);
+		ssize_t r = fip->ops->flush(fip, offset, tmplen, lane, flags);
 		if (r < 0) {
 			RPMEM_LOG(ERR, "persist operation failed");
 			ret = (int)r;
