@@ -639,17 +639,9 @@ rpmem_flush(RPMEMpool *rpp, size_t offset, size_t length,
 		return -1;
 	}
 
-	/*
-	 * By default use RDMA SEND persist mode which has atomicity
-	 * guarantees. For relaxed persist use RDMA WRITE.
-	 */
-	unsigned mode = RPMEM_PERSIST_SEND;
-	if (flags & RPMEM_PERSIST_RELAXED)
-		mode = RPMEM_PERSIST_WRITE;
-
-	mode |= RPMEM_OP_FLUSH;
-
-	int ret = rpmem_fip_persist(rpp->fip, offset, length,
+	unsigned mode = 0;
+	
+	int ret = rpmem_fip_flush(rpp->fip, offset, length,
 			lane, mode);
 	if (unlikely(ret)) {
 		ERR("flush operation failed");
