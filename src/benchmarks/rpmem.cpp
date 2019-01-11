@@ -583,6 +583,8 @@ static int
 pool_init(const char *path, struct init_args init, struct rpmem_bench *mb)
 {
 	struct pool_set *set = poolset_init(path, init.min_size);
+	if (!set)
+		return 1;
 
 	struct pool_replica *local = get_master_replica(set);
 	if (rep_local_init(local, mb))
