@@ -67,6 +67,7 @@ struct rpmem_args {
 	size_t dest_off;	    /* destination address offset */
 	unsigned flushes_per_drain; /* # of flushes per drain */
 	bool relaxed;		    /* use RPMEM_PERSIST_RELAXED flag */
+	char *workload;		    /* workload */
 };
 
 /*
@@ -87,7 +88,85 @@ struct rpmem_bench {
 	unsigned nreplicas;	  /* number of remote replicas */
 
 	unsigned flags;		  /* flags for rpmem_persist */
+
+	size_t workload_len;	  /* length of the workload */
 };
+
+/*
+ * rpmem_workload_op_flush -- XXX
+ */
+static inline int
+rpmem_workload_op_flush(struct rpmem_bench *mb, struct operation_info *info)
+{
+	uint64_t idx = info->worker->index * info->args->n_ops_per_thread +
+		info->index;
+
+	assert(idx < mb->n_offsets);
+
+	size_t offset = mb->offsets[idx];
+	size_t len = mb->chunk_size;
+
+	if (!mb->pargs->no_memset) {
+		void *dest = (char *)mb->pool + offset;
+		/* thread id on MS 4 bits and operation id on LS 4 bits */
+		int c = ((info->worker->index & 0xf) << 4) +
+			((0xf & info->index));
+		memset(dest, c, len);
+	}
+
+	int ret = 0;
+	for (unsigned r = 0; r < mb->nreplicas; ++r) {
+		assert(info->worker->index < mb->nlanes[r]);
+
+		ret = rpmem_flush(mb->rpp[r], offset, len, info->worker->index,
+				  mb->flags);
+		if (unlikely(ret)) {
+			fprintf(stderr, "rpmem_persist replica #%u: %s\n", r,
+				rpmem_errormsg());
+			return ret;
+		}
+	}
+	return 0;
+}
+
+/*
+ * rpmem_workload_op_drain -- XXX
+ */
+static inline int
+rpmem_workload_op_drain(struct rpmem_bench *mb, struct operation_info *info)
+{
+	int ret = 0;
+	for (unsigned r = 0; r < mb->nreplicas; ++r) {
+		ret = rpmem_drain(mb->rpp[r], info->worker->index, 0);
+
+		if (unlikely(ret)) {
+			fprintf(stderr, "rpmem_drain replica #%u: %s\n", r,
+				rpmem_errormsg());
+			return ret;
+		}
+	}
+	return 0;
+}
+
+/*
+ * rpmem_workload_op -- actual benchmark operation
+ */
+static int
+rpmem_workload_op(struct benchmark *bench, struct operation_info *info)
+{
+	auto *mb = (struct rpmem_bench *)pmembench_get_priv(bench);
+
+	char op = mb->pargs->workload[info->index % mb->workload_len];
+	switch(op) {
+	case 'f':
+		return rpmem_workload_op_flush(mb, info);
+	case 'd':
+		return rpmem_workload_op_drain(mb, info);
+	default:
+		fprintf(stderr, "unknown operation: %c", op);
+		return 1;
+	}
+}
 
 /*
  * rpmem_flush_drain_op -- actual benchmark operation
@@ -649,6 +728,9 @@ rpmem_init(struct benchmark *bench, struct benchmark_args *args)
 		goto err_parse_mode;
 	}
 
+	mb->workload_len = strlen(mb->pargs->workload);
+	assert(mb->workload_len > 0);
+
 	/* calculate a chunk size and a minimal required pool size */
 	mb->chunk_size = ALIGN_CL(args->dsize);
 	init.min_size = get_min_size(mb->chunk_size, init);
@@ -698,14 +780,17 @@ static struct benchmark_clo common_clo[4];
 static struct benchmark_clo flush_clo[5];
 static struct benchmark_clo drain_clo[4];
 static struct benchmark_clo persist_clo[5];
+static struct benchmark_clo workload_clo[5];
 /* Stores information about benchmark. */
 static struct benchmark_info flush_info;
 static struct benchmark_info drain_info;
 static struct benchmark_info persist_info;
+static struct benchmark_info workload_info;
 CONSTRUCTOR(rpmem_constructor)
 void
 rpmem_constructor(void)
 {
+	/* initialize common benchmark options */
 	common_clo[0].opt_short = 'M';
 	common_clo[0].opt_long = "mem-mode";
 	common_clo[0].descr = "Memory writing mode :"
@@ -741,6 +826,7 @@ rpmem_constructor(void)
 	common_clo[3].off = clo_field_offset(struct rpmem_args, no_memset);
 	common_clo[3].type = CLO_TYPE_FLAG;
 
+	/* rpmem_persist() benchmark */
 	memcpy(persist_clo, common_clo, sizeof(common_clo));
 
 	persist_clo[4].opt_short = 0;
@@ -766,6 +852,7 @@ rpmem_constructor(void)
 	persist_info.print_bandwidth = true;
 	REGISTER_BENCHMARK(persist_info);
 
+	/* rpmem_flush() and rpmem_drain() benchmark */
 	memcpy(flush_clo, common_clo, sizeof(common_clo));
 
 	flush_clo[4].opt_short = 0;
@@ -789,6 +876,7 @@ rpmem_constructor(void)
 	flush_info.nclos = ARRAY_SIZE(flush_clo);
 	REGISTER_BENCHMARK(flush_info);
 
+	/* rpmem_drain() benchmark */
 	memcpy(drain_clo, common_clo, sizeof(common_clo));
 
 	memcpy(&drain_info, &persist_info, sizeof(drain_info));
@@ -799,4 +887,24 @@ rpmem_constructor(void)
 	drain_info.clos = drain_clo;
 	drain_info.nclos = ARRAY_SIZE(drain_clo);
 	REGISTER_BENCHMARK(drain_info);
+
+	/* rpmem mixed workload benchmark */
+	memcpy(workload_clo, common_clo, sizeof(common_clo));
+
+	workload_clo[4].opt_short = 'M';
+	workload_clo[4].opt_long = "workload";
+	workload_clo[4].descr = "Workload e.g.: fdf means rpmem_flush, "
+				"rpmem_drain, rpmem_flush";
+	workload_clo[4].def = "fd";
+	workload_clo[4].off = clo_field_offset(struct rpmem_args, workload);
+	workload_clo[4].type = CLO_TYPE_STR;
+
+	memcpy(&workload_info, &persist_info, sizeof(drain_info));
+	workload_info.name = "rpmem_workload";
+	workload_info.brief =
+		"Benchmark for rpmem_flush() and rpmem_drain() workloads";
+	workload_info.operation = rpmem_workload_op;
+	workload_info.clos = workload_clo;
+	workload_info.nclos = ARRAY_SIZE(workload_clo);
+	REGISTER_BENCHMARK(workload_info);
 };
