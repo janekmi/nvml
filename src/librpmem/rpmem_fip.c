@@ -1276,9 +1276,6 @@ apm_flush(struct rpmem_fip *fip, size_t offset,
 	/* Limit len to the max value of the return type. */
 	len = min(len, SSIZE_MAX);
 
-	/* turn off RDMA Write completions */
-	/* flags |= RPMEM_COMPLETION; */
-
 	ret = raw_flush(fip, offset, len, lane, flags);
 	if (ret)
 		return -abs(ret);

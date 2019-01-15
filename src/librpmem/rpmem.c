@@ -626,7 +626,7 @@ rpmem_flush(RPMEMpool *rpp, size_t offset, size_t length,
 		return -1;
 	}
 
-	if (flags != 0) {
+	if (flags & RPMEM_FLUSH_FLAGS_MASK) {
 		ERR("invalid flags (0x%x)", flags);
 		errno = EINVAL;
 		return -1;
@@ -640,6 +640,8 @@ rpmem_flush(RPMEMpool *rpp, size_t offset, size_t length,
 	}
 
 	unsigned mode = 0;
+	if (flags & RPMEM_FLUSH_COMPLETE)
+		mode |= RPMEM_COMPLETION;
 	
 	int ret = rpmem_fip_flush(rpp->fip, offset, length,
 			lane, mode);
