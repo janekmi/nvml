@@ -96,7 +96,8 @@ struct rpmem_bench {
  * rpmem_workload_op_flush -- XXX
  */
 static inline int
-rpmem_workload_op_flush(struct rpmem_bench *mb, struct operation_info *info)
+rpmem_workload_op_flush(struct rpmem_bench *mb, struct operation_info *info,
+		unsigned flags)
 {
 	uint64_t idx = info->worker->index * info->args->n_ops_per_thread +
 		info->index;
@@ -119,7 +120,7 @@ rpmem_workload_op_flush(struct rpmem_bench *mb, struct operation_info *info)
 		assert(info->worker->index < mb->nlanes[r]);
 
 		ret = rpmem_flush(mb->rpp[r], offset, len, info->worker->index,
-				  mb->flags);
+				  flags);
 		if (unlikely(ret)) {
 			fprintf(stderr, "rpmem_persist replica #%u: %s\n", r,
 				rpmem_errormsg());
@@ -161,7 +162,10 @@ rpmem_workload_op(struct benchmark *bench, struct operation_info *info)
 	char op = mb->pargs->workload[info->index % mb->workload_len];
 	switch(op) {
 	case 'f':
-		return rpmem_workload_op_flush(mb, info);
+		return rpmem_workload_op_flush(mb, info, mb->flags);
+	case 'g':
+		return rpmem_workload_op_flush(mb, info,
+				mb->flags | RPMEM_FLUSH_COMPLETE);
 	case 'd':
 		return rpmem_workload_op_drain(mb, info);
 	default:
@@ -897,8 +901,9 @@ rpmem_constructor(void)
 
 	workload_clo[4].opt_short = 'M';
 	workload_clo[4].opt_long = "workload";
-	workload_clo[4].descr = "Workload e.g.: fdf means rpmem_flush, "
-				"rpmem_drain, rpmem_flush";
+	workload_clo[4].descr = "Workload e.g.: fgd means rpmem_flush, "
+				"rpmem_flush + RPMEM_FLUSH_COMPLETE, "
+				"rpmem_drain";
 	workload_clo[4].def = "fd";
 	workload_clo[4].off = clo_field_offset(struct rpmem_args, workload);
 	workload_clo[4].type = CLO_TYPE_STR;
