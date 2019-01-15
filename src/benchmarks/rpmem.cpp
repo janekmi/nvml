@@ -123,6 +123,7 @@ rpmem_workload_op_flush(struct rpmem_bench *mb, struct operation_info *info)
 		if (unlikely(ret)) {
 			fprintf(stderr, "rpmem_persist replica #%u: %s\n", r,
 				rpmem_errormsg());
+			fprintf(stderr, "op index: %zu\n", info->index);
 			return ret;
 		}
 	}
@@ -142,6 +143,7 @@ rpmem_workload_op_drain(struct rpmem_bench *mb, struct operation_info *info)
 		if (unlikely(ret)) {
 			fprintf(stderr, "rpmem_drain replica #%u: %s\n", r,
 				rpmem_errormsg());
+			fprintf(stderr, "op index: %zu\n", info->index);
 			return ret;
 		}
 	}
@@ -201,6 +203,7 @@ rpmem_flush_drain_op(struct benchmark *bench, struct operation_info *info)
 		if (unlikely(ret)) {
 			fprintf(stderr, "rpmem_persist replica #%u: %s\n", r,
 				rpmem_errormsg());
+			fprintf(stderr, "op index: %zu\n", info->index);
 			return ret;
 		}
 	}
@@ -216,6 +219,7 @@ rpmem_flush_drain_op(struct benchmark *bench, struct operation_info *info)
 		if (unlikely(ret)) {
 			fprintf(stderr, "rpmem_drain replica #%u: %s\n", r,
 				rpmem_errormsg());
+			fprintf(stderr, "op index: %zu\n", info->index);
 			return ret;
 		}
 	}
