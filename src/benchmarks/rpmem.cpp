@@ -736,8 +736,12 @@ rpmem_init(struct benchmark *bench, struct benchmark_args *args)
 		goto err_parse_mode;
 	}
 
-	mb->workload_len = strlen(mb->pargs->workload);
-	assert(mb->workload_len > 0);
+	/* workload calculations */
+	mb->workload_len = 0;
+	if (mb->pargs->workload) {
+		mb->workload_len = strlen(mb->pargs->workload);
+		assert(mb->workload_len > 0);
+	}
 
 	/* calculate a chunk size and a minimal required pool size */
 	mb->chunk_size = ALIGN_CL(args->dsize);
