@@ -110,6 +110,9 @@ Single **rpmem_drain**() confirms persistence on the remote node of data copied
 by all **rpmem_flush**() calls called before it and using the same *lane*.
 The **rpmem_drain**() can be replaced with **rpmem_persist**().
 
+The **rpmem_flush**() function performance is affected by **RPMEM_TX_SIZE**
+environment variable (see **librpmem**(7) for more details).
+
 The **rpmem_read**() function reads *length* bytes of data from a remote pool
 at *offset* and copies it to the buffer *buff*. The operation is performed on
 the specified *lane*. The lane must be less than the value returned by
