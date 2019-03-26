@@ -51,32 +51,16 @@ extern "C" {
 
 typedef struct rpmem_pool RPMEMpool;
 
-#define RPMEM_POOL_HDR_SIG_LEN	8
-#define RPMEM_POOL_HDR_UUID_LEN	16 /* uuid byte length */
-#define RPMEM_POOL_USER_FLAGS_LEN 16
+RPMEMpool *rpmem_create(const char *target, const char *target_pool_name,
+		void *init_pool_addr, size_t pool_size, unsigned *nlanes,
+		void *ctx, size_t ctx_size);
 
-struct rpmem_pool_attr {
-	char signature[RPMEM_POOL_HDR_SIG_LEN]; /* pool signature */
-	uint32_t major; /* format major version number */
-	uint32_t compat_features; /* mask: compatible "may" features */
-	uint32_t incompat_features; /* mask: "must support" features */
-	uint32_t ro_compat_features; /* mask: force RO if unsupported */
-	unsigned char poolset_uuid[RPMEM_POOL_HDR_UUID_LEN]; /* pool uuid */
-	unsigned char uuid[RPMEM_POOL_HDR_UUID_LEN]; /* first part uuid */
-	unsigned char next_uuid[RPMEM_POOL_HDR_UUID_LEN]; /* next pool uuid */
-	unsigned char prev_uuid[RPMEM_POOL_HDR_UUID_LEN]; /* prev pool uuid */
-	unsigned char user_flags[RPMEM_POOL_USER_FLAGS_LEN]; /* user flags */
-};
+RPMEMpool *rpmem_open(const char *target, const char *target_pool_name,
+		void *init_pool_addr, size_t pool_size, unsigned *nlanes,
+		void *ctx, size_t ctx_size);
 
-RPMEMpool *rpmem_create(const char *target, const char *pool_set_name,
-		void *pool_addr, size_t pool_size, unsigned *nlanes,
-		const struct rpmem_pool_attr *create_attr);
-
-RPMEMpool *rpmem_open(const char *target, const char *pool_set_name,
-		void *pool_addr, size_t pool_size, unsigned *nlanes,
-		struct rpmem_pool_attr *open_attr);
-
-int rpmem_set_attr(RPMEMpool *rpp, const struct rpmem_pool_attr *attr);
+int rpmem_ctrl(const char *target, const char *target_pool_name,
+		void *ctrl, size_t ctrl_size);
 
 int rpmem_close(RPMEMpool *rpp);
 
@@ -93,10 +77,7 @@ int rpmem_read(RPMEMpool *rpp, void *buff, size_t offset, size_t length,
 int rpmem_deep_persist(RPMEMpool *rpp, size_t offset, size_t length,
 		unsigned lane);
 
-#define RPMEM_REMOVE_FORCE 0x1
-#define RPMEM_REMOVE_POOL_SET 0x2
-
-int rpmem_remove(const char *target, const char *pool_set, int flags);
+int rpmem_msg(RPMEMpool *rpp, void *msg, size_t msg_size);
 
 /*
  * RPMEM_MAJOR_VERSION and RPMEM_MINOR_VERSION provide the current version of
@@ -110,15 +91,6 @@ const char *rpmem_check_version(unsigned major_required,
 		unsigned minor_required);
 
 const char *rpmem_errormsg(void);
-
-/* minimum size of a pool */
-#define RPMEM_MIN_POOL ((size_t)(1024 * 8)) /* 8 KB */
-
-/*
- * This limit is set arbitrary to incorporate a pool header and required
- * alignment plus supply.
- */
-#define RPMEM_MIN_PART ((size_t)(1024 * 1024 * 2)) /* 2 MiB */
 
 #ifdef __cplusplus
 }
