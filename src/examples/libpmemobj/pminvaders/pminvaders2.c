@@ -748,6 +748,29 @@ intro_loop(PMEMobjpool *pop, TOID(struct root) r)
 	}
 }
 
+static PMEMobjpool*
+do_open(const char *path)
+{
+	PMEMobjpool *pop = pmemobj_create(path, POBJ_LAYOUT_NAME(pminvaders2),
+			0, S_IRUSR | S_IWUSR);
+
+	if (pop)
+		return pop;
+
+	if (errno != EEXIST) {
+		fprintf(stderr, "pmemobj_create: %s", pmemobj_errormsg());
+		return NULL;
+	}
+
+	pop = pmemobj_open(path, POBJ_LAYOUT_NAME(pminvaders2));
+
+	if (pop)
+		return pop;
+
+	fprintf(stderr, "pmemobj_open: %s", pmemobj_errormsg());
+	return NULL;
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -759,20 +782,9 @@ main(int argc, char *argv[])
 
 	srand(time(NULL));
 
-	if (access(argv[1], F_OK)) {
-		if ((pop = pmemobj_create(argv[1],
-				POBJ_LAYOUT_NAME(pminvaders2),
-				POOL_SIZE, S_IRUSR | S_IWUSR)) == NULL) {
-			fprintf(stderr, "%s", pmemobj_errormsg());
-			exit(1);
-		}
-	} else {
-		if ((pop = pmemobj_open(argv[1],
-				POBJ_LAYOUT_NAME(pminvaders2))) == NULL) {
-			fprintf(stderr, "%s", pmemobj_errormsg());
-			exit(1);
-		}
-	}
+	pop = do_open(argv[1]);
+	if (!pop)
+		return 1;
 
 	initscr();
 	start_color();
