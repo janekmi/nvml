@@ -455,10 +455,10 @@ util_file_create(const char *path, size_t size, size_t minsize)
 	}
 
 	/* for windows we can't flock until after we fallocate */
-	if (os_flock(fd, OS_LOCK_EX | OS_LOCK_NB) < 0) {
-		ERR("!flock \"%s\"", path);
-		goto err;
-	}
+//	if (os_flock(fd, OS_LOCK_EX | OS_LOCK_NB) < 0) {
+//		ERR("!flock \"%s\"", path);
+//		goto err;
+//	}
 
 	return fd;
 
@@ -493,11 +493,11 @@ util_file_open(const char *path, size_t *size, size_t minsize, int flags)
 		return -1;
 	}
 
-	if (os_flock(fd, OS_LOCK_EX | OS_LOCK_NB) < 0) {
-		ERR("!flock \"%s\"", path);
-		(void) os_close(fd);
-		return -1;
-	}
+//	if (os_flock(fd, OS_LOCK_EX | OS_LOCK_NB) < 0) {
+//		ERR("!flock \"%s\"", path);
+//		(void) os_close(fd);
+//		return -1;
+//	}
 
 	if (size || minsize) {
 		if (size)

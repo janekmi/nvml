@@ -487,6 +487,8 @@ ctl_new(void)
 void
 ctl_delete(struct ctl *c)
 {
+	if (!c)
+		return;
 	Free(c);
 }
 

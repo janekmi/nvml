@@ -135,6 +135,8 @@ error_transient_alloc:
 void
 stats_delete(PMEMobjpool *pop, struct stats *s)
 {
+	if (!s)
+		return;
 	pmemops_persist(&pop->p_ops, s->persistent,
 	sizeof(struct stats_persistent));
 	Free(s->transient);

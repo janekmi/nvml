@@ -123,6 +123,8 @@ tx_params_new(void)
 void
 tx_params_delete(struct tx_parameters *tx_params)
 {
+	if (!tx_params)
+		return;
 	Free(tx_params);
 }
 

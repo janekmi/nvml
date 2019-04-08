@@ -221,7 +221,7 @@ static const features_t features_zero =
 
 #if NDCTL_ENABLED
 #define POOL_FEAT_COMPAT_DEFAULT \
-	(POOL_FEAT_CHECK_BAD_BLOCKS)
+	(POOL_FEAT_ZERO)
 #else
 #define POOL_FEAT_COMPAT_DEFAULT \
 	(POOL_FEAT_ZERO)

@@ -3696,16 +3696,16 @@ util_replica_check(struct pool_set *set, const struct pool_attr *attr)
 			set->rdonly |= rep->part[p].rdonly;
 		}
 
-		if (memcmp(HDR(REPP(set, r), 0)->uuid,
-					HDR(REP(set, r), 0)->prev_repl_uuid,
-					POOL_HDR_UUID_LEN) ||
-		    memcmp(HDR(REPN(set, r), 0)->uuid,
-					HDR(REP(set, r), 0)->next_repl_uuid,
-					POOL_HDR_UUID_LEN)) {
-			ERR("wrong replica UUID");
-			errno = EINVAL;
-			return -1;
-		}
+//		if (memcmp(HDR(REPP(set, r), 0)->uuid,
+//					HDR(REP(set, r), 0)->prev_repl_uuid,
+//					POOL_HDR_UUID_LEN) ||
+//		    memcmp(HDR(REPN(set, r), 0)->uuid,
+//					HDR(REP(set, r), 0)->next_repl_uuid,
+//					POOL_HDR_UUID_LEN)) {
+//			ERR("wrong replica UUID");
+//			errno = EINVAL;
+//			return -1;
+//		}
 		if (!set->ignore_sds && !rep->remote && rep->nhdrs) {
 			struct shutdown_state sds;
 			shutdown_state_init(&sds, NULL);
