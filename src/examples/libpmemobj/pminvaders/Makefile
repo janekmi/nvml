@@ -10,7 +10,7 @@ include $(TOP)/src/common.inc
 
 NCURSES := $(call check_package, ncurses)
 ifeq ($(NCURSES),y)
-PROGS = pminvaders pminvaders2
+PROGS = pminvaders pminvaders2 pmseti2
 else
 $(info NOTE: Skipping pminvaders and pminvaders2 because ncurses is missing \
 -- see src/examples/libpmemobj/pminvaders/README for details.)
@@ -26,3 +26,4 @@ include ../../Makefile.inc
 
 pminvaders: pminvaders.o
 pminvaders2: pminvaders2.o
+pmseti2: pmseti2.o
