@@ -53,6 +53,8 @@
 #define SET_PREV		4
 #define SET_FLAGS		5
 
+#define POOL_FEAT_SINGLEHDR	0x0001U	/* pool header only in the first part */
+
 static void
 default_attr(struct rpmem_pool_attr *attr)
 {
@@ -64,6 +66,7 @@ default_attr(struct rpmem_pool_attr *attr)
 	memset(attr->next_uuid, SET_NEXT, RPMEM_POOL_HDR_UUID_LEN);
 	memset(attr->prev_uuid, SET_PREV, RPMEM_POOL_HDR_UUID_LEN);
 	memset(attr->user_flags, SET_FLAGS, RPMEM_POOL_USER_FLAGS_LEN);
+	attr->incompat_features = POOL_FEAT_SINGLEHDR;
 }
 
 static int
@@ -83,7 +86,21 @@ do_create(const char *target, const char *poolset, void *pool)
 		return 1;
 	}
 
-	if (rpmem_persist(rpp, DATA_OFF, DATA_SIZE, 0, 0)) {
+	char *string = (char *)pool;
+	char pattern = '1';
+	const size_t numa_boundary = 10 * 1024 * 1024;
+	const size_t part_size = 4 * 1024;
+	size_t i;
+	for (i = numa_boundary - part_size; i < numa_boundary; ++i) {
+		string[i] = pattern;
+	}
+	pattern = '2';
+	for (; i < numa_boundary + part_size; ++i) {
+		string[i] = pattern;
+	}
+
+	if (rpmem_persist(rpp, numa_boundary - part_size, part_size * 2,
+			0, RPMEM_PERSIST_RELAXED)) {
 		fprintf(stderr, "rpmem_persist: %s\n", rpmem_errormsg());
 		ret = 1;
 	}
