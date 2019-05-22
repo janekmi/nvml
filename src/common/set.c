@@ -1819,12 +1819,12 @@ util_part_open(struct pool_set_part *part, size_t minsize, int create_part)
 		}
 
 		/* check if filesize matches */
-		if (part->filesize != size) {
-			ERR("file size does not match config: %s, %zu != %zu",
-				part->path, size, part->filesize);
-			errno = EINVAL;
-			return -1;
-		}
+// 		if (part->filesize != size) {
+// 			ERR("file size does not match config: %s, %zu != %zu",
+// 				part->path, size, part->filesize);
+// 			errno = EINVAL;
+// 			return -1;
+// 		}
 	}
 
 	return 0;
