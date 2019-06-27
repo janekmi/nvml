@@ -183,23 +183,29 @@ common_rpma_mr_fini(struct app_rpma_state_t *rpma)
 static int
 server_rpma_init(struct args_t *args)
 {
+	int ret = 0;
 	struct app_rpma_state_t *rpma = &args->rpma;
 	struct app_rpma_params_t *params = &rpma->params;
-	rpma->domain = rpma_listen(args->addr, &params->service, &params->nlanes);
+	rpma->domain = rpma_domain();
 	if (!rpma->domain)
 		return 1;
+
+	if ((ret = rpma_listen(rpma->domain, args->addr, &params->service,
+					&params->nlanes)))
+		goto err_listen;
 
 	/* assume single RPMA connection will consume all RPMA domain lanes */
 	rpma->nlanes = params->nlanes;
 
-	if (common_rpma_mr_init(rpma, SERVER_MRID))
+	if ((ret = common_rpma_mr_init(rpma, SERVER_MRID)))
 		goto err_mr_init;
 
 	return 0;
 
 err_mr_init:
+err_listen:
 	rpma_shutdown(rpma->domain);
-	return 1;
+	return ret;
 }
 
 /*
@@ -363,12 +369,14 @@ client_rpma_init(struct args_t *args)
 	struct app_rpma_params_t *params = &rpma->params;
 	rpma->nlanes = rpma->params.nlanes;
 
-	rpma->conn = rpma_connect(args->addr, params->service, &rpma->nlanes);
-	if (!rpma->conn)
+	rpma->domain = rpma_domain();
+	if (!rpma->domain)
 		return 1;
 
-	rpma->domain = rpma_get_domain(rpma->conn);
-	assert(rpma->domain != NULL);
+	rpma->conn = rpma_connect(rpma->domain, args->addr, params->service,
+			&rpma->nlanes);
+	if (!rpma->conn)
+		goto err_connect;
 
 	if ((ret = client_rpma_mr_init(rpma)))
 		goto err_mr_init;
@@ -377,7 +385,9 @@ client_rpma_init(struct args_t *args)
 
 err_mr_init:
 	(void)rpma_close(rpma->conn);
-	return ret;
+err_connect:
+	(void)rpma_shutdown(rpma->domain);
+	return 1;
 }
 
 /*
