@@ -52,16 +52,19 @@ extern "C" {
 typedef struct rpma_domain RPMAdomain;
 typedef struct rpma_connection RPMAconn;
 
+/* common */
+RPMAdomain *rpma_domain(void);
+int rpma_shutdown(RPMAdomain *domain);
+
 /* client-side */
-RPMAconn *rpma_connect(const char *node, uint16_t service, unsigned *nlanes);
-RPMAdomain *rpma_get_domain(RPMAconn *conn);
+RPMAconn *rpma_connect(RPMAdomain *domain, const char *node, uint16_t service,
+		unsigned *nlanes);
 int rpma_close(RPMAconn *conn);
 
 /* server-side */
-RPMAdomain *rpma_listen(const char *node, uint16_t *service,
+int rpma_listen(RPMAdomain *domain, const char *node, uint16_t *service,
 		unsigned *total_nlanes);
 RPMAconn *rpma_accept(RPMAdomain *domain, unsigned *nlanes);
-int rpma_shutdown(RPMAdomain *domain);
 
 /* memory regions */
 int rpma_mr_open(RPMAdomain *domain, void *buf, size_t len, unsigned mrid);
