@@ -52,7 +52,7 @@ extern "C" {
 typedef struct rpma_domain RPMAdomain;
 typedef struct rpma_connection RPMAconn;
 
-/* common */
+/* domain management */
 RPMAdomain *rpma_domain(void);
 int rpma_shutdown(RPMAdomain *domain);
 
@@ -75,7 +75,8 @@ int rpma_conn_mr_get(RPMAconn *conn, unsigned mrid, size_t *len);
 /* remote memory operations */
 int rpma_write(RPMAconn *conn, int dest_mrdes, size_t dest_off, int src_mrdes,
 		size_t src_off, size_t length, unsigned lane);
-int rpma_atomic_write();
+int rpma_atomic_write(RPMAconn *conn, int dest_mrdes, size_t dest_off,
+		int src_mrdes, size_t src_off, size_t length, unsigned lane);
 int rpma_read(RPMAconn *conn, int dest_mrdes, size_t dest_off, int src_mrdest,
 		size_t src_off, size_t length, unsigned lane);
 int rpma_flush(RPMAconn *conn, unsigned lane);
