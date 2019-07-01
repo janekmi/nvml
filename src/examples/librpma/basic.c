@@ -64,7 +64,6 @@ struct mr_t {
 /* RPMA parameters - exchanged between server and the client */
 struct app_rpma_params_t {
 	uint16_t service;
-	unsigned nlanes;
 };
 
 #define FINI_CLOSING_MAGIC 83
@@ -76,7 +75,6 @@ struct app_rpma_fini_t {
 /* RPMA state */
 struct app_rpma_state_t {
 	struct app_rpma_params_t params;
-	unsigned nlanes;
 
 	RPMAdomain *domain;
 	RPMAconn *conn;
@@ -186,16 +184,15 @@ server_rpma_init(struct args_t *args)
 	int ret = 0;
 	struct app_rpma_state_t *rpma = &args->rpma;
 	struct app_rpma_params_t *params = &rpma->params;
+	unsigned nconns = 0;
 	rpma->domain = rpma_domain();
 	if (!rpma->domain)
 		return 1;
 
 	if ((ret = rpma_listen(rpma->domain, args->addr, &params->service,
-					&params->nlanes)))
+					&nconns)))
 		goto err_listen;
-
-	/* assume single RPMA connection will consume all RPMA domain lanes */
-	rpma->nlanes = params->nlanes;
+	assert(nconns > 1);
 
 	if ((ret = common_rpma_mr_init(rpma, SERVER_MRID)))
 		goto err_mr_init;
@@ -228,7 +225,7 @@ server_rpma_fini(struct app_rpma_state_t *rpma)
 static int
 server_rpma_conn_init(struct app_rpma_state_t *rpma)
 {
-	rpma->conn = rpma_accept(rpma->domain, &rpma->nlanes);
+	rpma->conn = rpma_accept(rpma->domain);
 
 	if (!rpma->conn)
 		return 1;
@@ -334,7 +331,7 @@ client_rpma_mr_init(struct app_rpma_state_t *rpma)
 	/* obtain the remote memory region descriptor */
 	struct mr_t *mrr = &rpma->mr_remote;
 	mrr->id = SERVER_MRID;
-	mrr->des = rpma_conn_mr_get(rpma->conn, mrr->id, &mrr->len);
+	mrr->des = rpma_remote_mr_get(rpma->conn, mrr->id, &mrr->len);
 	if (mrr->des < 0) {
 		ret = -mrr->des;
 		goto err_conn_mr_get;
@@ -367,14 +364,12 @@ client_rpma_init(struct args_t *args)
 	int ret = 0;
 	struct app_rpma_state_t *rpma = &args->rpma;
 	struct app_rpma_params_t *params = &rpma->params;
-	rpma->nlanes = rpma->params.nlanes;
 
 	rpma->domain = rpma_domain();
 	if (!rpma->domain)
 		return 1;
 
-	rpma->conn = rpma_connect(rpma->domain, args->addr, params->service,
-			&rpma->nlanes);
+	rpma->conn = rpma_connect(rpma->domain, args->addr, params->service);
 	if (!rpma->conn)
 		goto err_connect;
 
@@ -412,25 +407,24 @@ client_rpma_use(struct app_rpma_state_t *rpma)
 	int ret = 0;
 	int dest_mrdes = rpma->mr_remote.des;
 	int src_mrdes = rpma->mr_local.des;
-	int lane = 0;
 
 	/* copy the second part first */
 	if ((ret = rpma_write(rpma->conn, dest_mrdes, 0, src_mrdes, MR_HALF,
-			MR_HALF, lane)))
+			MR_HALF)))
 		return ret;
 
 	/* copy the first part */
 	if ((ret = rpma_write(rpma->conn, dest_mrdes, MR_HALF, src_mrdes, 0,
-				MR_HALF, lane)))
+				MR_HALF)))
 			return ret;
 
 	/* copy the NULL terminator */
 	size_t null_term_off = MR_HALF * 2;
 	if ((ret = rpma_write(rpma->conn, dest_mrdes, null_term_off, src_mrdes,
-			null_term_off, 1, lane)))
+			null_term_off, 1)))
 				return ret;
 
-	if ((ret = rpma_flush(rpma->conn, lane)))
+	if ((ret = rpma_flush(rpma->conn)))
 		return ret;
 
 	return 0;
