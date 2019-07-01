@@ -52,34 +52,38 @@ extern "C" {
 typedef struct rpma_domain RPMAdomain;
 typedef struct rpma_connection RPMAconn;
 
-/* domain management */
+/* domain control */
 RPMAdomain *rpma_domain(void);
 int rpma_shutdown(RPMAdomain *domain);
 
 /* client-side */
-RPMAconn *rpma_connect(RPMAdomain *domain, const char *node, uint16_t service,
-		unsigned *nlanes);
+RPMAconn *rpma_connect(RPMAdomain *domain, const char *node, uint16_t service);
 int rpma_close(RPMAconn *conn);
+
+int rpma_multi_connect(RPMAdomain *domain, const char *node, uint16_t service,
+		RPMAconn **conns, unsigned *nconns);
+int rpma_multi_close(RPMAconn **conns, unsigned nconns);
 
 /* server-side */
 int rpma_listen(RPMAdomain *domain, const char *node, uint16_t *service,
-		unsigned *total_nlanes);
-RPMAconn *rpma_accept(RPMAdomain *domain, unsigned *nlanes);
+		unsigned *nconns);
+RPMAconn *rpma_accept(RPMAdomain *domain);
+int rpma_multi_accept(RPMAdomain *domain, RPMAconn **conns, unsigned *nconns);
 
 /* memory regions */
 int rpma_mr_open(RPMAdomain *domain, void *buf, size_t len, unsigned mrid);
 int rpma_mr_close(RPMAdomain *domain, int mrdes);
 int rpma_mr_get(RPMAdomain *domain, unsigned mrid);
-int rpma_conn_mr_get(RPMAconn *conn, unsigned mrid, size_t *len);
+int rpma_remote_mr_get(RPMAconn *conn, unsigned mrid, size_t *len);
 
 /* remote memory operations */
 int rpma_write(RPMAconn *conn, int dest_mrdes, size_t dest_off, int src_mrdes,
-		size_t src_off, size_t length, unsigned lane);
+		size_t src_off, size_t length);
 int rpma_atomic_write(RPMAconn *conn, int dest_mrdes, size_t dest_off,
-		int src_mrdes, size_t src_off, size_t length, unsigned lane);
+		int src_mrdes, size_t src_off, size_t length);
 int rpma_read(RPMAconn *conn, int dest_mrdes, size_t dest_off, int src_mrdest,
-		size_t src_off, size_t length, unsigned lane);
-int rpma_flush(RPMAconn *conn, unsigned lane);
+		size_t src_off, size_t length);
+int rpma_flush(RPMAconn *conn);
 
 #ifdef __cplusplus
 }
