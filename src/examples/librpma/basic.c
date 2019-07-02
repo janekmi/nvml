@@ -150,7 +150,7 @@ server_sockets_fini_wait(struct args_t *args)
  * common_rpma_mr_init -- allocate local memory region and open it for RPMA
  */
 static int
-common_rpma_mr_init(struct app_rpma_state_t *rpma, unsigned mrid)
+common_rpma_mr_init(struct app_rpma_state_t *rpma, unsigned mrid, int access)
 {
 	struct mr_t *mrl = &rpma->mr_local;
 	rpma->buff = calloc(MR_LENGTH, sizeof(char));
@@ -158,7 +158,8 @@ common_rpma_mr_init(struct app_rpma_state_t *rpma, unsigned mrid)
 		return 1;
 	mrl->id = mrid;
 	mrl->len = MR_LENGTH;
-	mrl->des = rpma_mr_open(rpma->domain, rpma->buff, mrl->len, mrl->id);
+	mrl->des = rpma_mr_open(rpma->domain, rpma->buff, mrl->len, mrl->id, access,
+			0);
 
 	return 0;
 }
@@ -185,16 +186,16 @@ server_rpma_init(struct args_t *args)
 	struct app_rpma_state_t *rpma = &args->rpma;
 	struct app_rpma_params_t *params = &rpma->params;
 	unsigned nconns = 0;
-	rpma->domain = rpma_domain();
+	rpma->domain = rpma_domain(0);
 	if (!rpma->domain)
 		return 1;
 
 	if ((ret = rpma_listen(rpma->domain, args->addr, &params->service,
-					&nconns)))
+					&nconns, 0)))
 		goto err_listen;
 	assert(nconns > 1);
 
-	if ((ret = common_rpma_mr_init(rpma, SERVER_MRID)))
+	if ((ret = common_rpma_mr_init(rpma, SERVER_MRID, RPMA_MR_ACCESS_WRITE)))
 		goto err_mr_init;
 
 	return 0;
@@ -225,7 +226,7 @@ server_rpma_fini(struct app_rpma_state_t *rpma)
 static int
 server_rpma_conn_init(struct app_rpma_state_t *rpma)
 {
-	rpma->conn = rpma_accept(rpma->domain);
+	rpma->conn = rpma_accept(rpma->domain, 0);
 
 	if (!rpma->conn)
 		return 1;
@@ -324,8 +325,8 @@ client_rpma_mr_init(struct app_rpma_state_t *rpma)
 {
 	int ret = 0;
 
-	/* initialize local memory region */
-	if (common_rpma_mr_init(rpma, CLIENT_MRID))
+	/* initialize local memory region - not used in this example */
+	if (common_rpma_mr_init(rpma, CLIENT_MRID, 0))
 		return 1;
 
 	/* obtain the remote memory region descriptor */
@@ -365,11 +366,11 @@ client_rpma_init(struct args_t *args)
 	struct app_rpma_state_t *rpma = &args->rpma;
 	struct app_rpma_params_t *params = &rpma->params;
 
-	rpma->domain = rpma_domain();
+	rpma->domain = rpma_domain(0);
 	if (!rpma->domain)
 		return 1;
 
-	rpma->conn = rpma_connect(rpma->domain, args->addr, params->service);
+	rpma->conn = rpma_connect(rpma->domain, args->addr, params->service, 0);
 	if (!rpma->conn)
 		goto err_connect;
 
@@ -410,18 +411,18 @@ client_rpma_use(struct app_rpma_state_t *rpma)
 
 	/* copy the second part first */
 	if ((ret = rpma_write(rpma->conn, dest_mrdes, 0, src_mrdes, MR_HALF,
-			MR_HALF)))
+			MR_HALF, 0)))
 		return ret;
 
 	/* copy the first part */
 	if ((ret = rpma_write(rpma->conn, dest_mrdes, MR_HALF, src_mrdes, 0,
-				MR_HALF)))
+				MR_HALF, 0)))
 			return ret;
 
 	/* copy the NULL terminator */
 	size_t null_term_off = MR_HALF * 2;
 	if ((ret = rpma_write(rpma->conn, dest_mrdes, null_term_off, src_mrdes,
-			null_term_off, 1)))
+			null_term_off, 1, 0)))
 				return ret;
 
 	if ((ret = rpma_flush(rpma->conn)))
