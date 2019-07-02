@@ -52,8 +52,6 @@ extern "C" {
 typedef struct rpma_domain RPMAdomain;
 typedef struct rpma_connection RPMAconn;
 
-#define RPMA_DOMAIN_AUTO_ACCEPT (1 << 0)
-
 /* domain control */
 RPMAdomain *rpma_domain(int flags);
 int rpma_shutdown(RPMAdomain *domain);
@@ -66,6 +64,8 @@ int rpma_close(RPMAconn *conn);
 int rpma_multi_connect(RPMAdomain *domain, const char *node, uint16_t service,
 		RPMAconn **conns, unsigned *nconns, int flags);
 int rpma_multi_close(RPMAconn **conns, unsigned nconns);
+
+#define RPMA_LISTEN_W_AUTO_ACCEPT (1 << 0)
 
 /* server-side */
 int rpma_listen(RPMAdomain *domain, const char *node, uint16_t *service,
