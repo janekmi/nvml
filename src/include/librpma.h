@@ -52,37 +52,45 @@ extern "C" {
 typedef struct rpma_domain RPMAdomain;
 typedef struct rpma_connection RPMAconn;
 
+#define RPMA_DOMAIN_AUTO_ACCEPT (1 << 0)
+
 /* domain control */
-RPMAdomain *rpma_domain(void);
+RPMAdomain *rpma_domain(int flags);
 int rpma_shutdown(RPMAdomain *domain);
 
 /* client-side */
-RPMAconn *rpma_connect(RPMAdomain *domain, const char *node, uint16_t service);
+RPMAconn *rpma_connect(RPMAdomain *domain, const char *node, uint16_t service,
+		int flags);
 int rpma_close(RPMAconn *conn);
 
 int rpma_multi_connect(RPMAdomain *domain, const char *node, uint16_t service,
-		RPMAconn **conns, unsigned *nconns);
+		RPMAconn **conns, unsigned *nconns, int flags);
 int rpma_multi_close(RPMAconn **conns, unsigned nconns);
 
 /* server-side */
 int rpma_listen(RPMAdomain *domain, const char *node, uint16_t *service,
-		unsigned *nconns);
-RPMAconn *rpma_accept(RPMAdomain *domain);
-int rpma_multi_accept(RPMAdomain *domain, RPMAconn **conns, unsigned *nconns);
+		unsigned *nconns, int flags);
+RPMAconn *rpma_accept(RPMAdomain *domain, int flags);
+int rpma_multi_accept(RPMAdomain *domain, RPMAconn **conns, unsigned *nconns,
+		int flags);
+
+#define RPMA_MR_ACCESS_READ		(1 << 0)
+#define RPMA_MR_ACCESS_WRITE	(1 << 1)
 
 /* memory regions */
-int rpma_mr_open(RPMAdomain *domain, void *buf, size_t len, unsigned mrid);
+int rpma_mr_open(RPMAdomain *domain, void *buf, size_t len, unsigned mrid,
+		int access, int flags);
 int rpma_mr_close(RPMAdomain *domain, int mrdes);
 int rpma_mr_get(RPMAdomain *domain, unsigned mrid);
 int rpma_remote_mr_get(RPMAconn *conn, unsigned mrid, size_t *len);
 
+#define RPMA_WRITE_ATOMIC	(1 << 0)
+
 /* remote memory operations */
 int rpma_write(RPMAconn *conn, int dest_mrdes, size_t dest_off, int src_mrdes,
-		size_t src_off, size_t length);
-int rpma_atomic_write(RPMAconn *conn, int dest_mrdes, size_t dest_off,
-		int src_mrdes, size_t src_off, size_t length);
+		size_t src_off, size_t length, int flags);
 int rpma_read(RPMAconn *conn, int dest_mrdes, size_t dest_off, int src_mrdest,
-		size_t src_off, size_t length);
+		size_t src_off, size_t length, int flags);
 int rpma_flush(RPMAconn *conn);
 
 #ifdef __cplusplus
