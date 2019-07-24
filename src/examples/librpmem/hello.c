@@ -156,10 +156,11 @@ err:
 }
 
 static void
-parse_args(int argc, char *argv[], const char **target, const char **poolset)
+parse_args(int argc, char *argv[], const char **target, const char **poolset,
+		int *nops)
 {
 	if (argc < 3) {
-		fprintf(stderr, "usage:\t%s <target> <poolset>\n"
+		fprintf(stderr, "usage:\t%s <target> <poolset> [<nops>]\n"
 				"\n"
 				"e.g.:\t%s localhost pool.set\n",
 				argv[0], argv[0]);
@@ -169,6 +170,9 @@ parse_args(int argc, char *argv[], const char **target, const char **poolset)
 
 	*target = argv[1];
 	*poolset = argv[2];
+	if (argc == 4) {
+		*nops = atoi(argv[3]);
+	}
 }
 
 static void *
@@ -195,7 +199,8 @@ int
 main(int argc, char *argv[])
 {
 	const char *target, *poolset;
-	parse_args(argc, argv, &target, &poolset);
+	int nops = -1;
+	parse_args(argc, argv, &target, &poolset, &nops);
 
 	void *pool = alloc_memory();
 	if (!pool)
@@ -213,18 +218,25 @@ main(int argc, char *argv[])
 
 	if (created) {
 		write_hello_str(hello, en);
-	} else {
+		ret = remote_write(rpp);
+		if (ret)
+			goto exit_close;
+	}
+
+	do {
 		ret = remote_read(rpp, hello);
 		if (ret)
 			goto exit_close;
 		printf("\n%s\n\n", hello->str);
 		translate(hello);
-	}
 
-	ret = remote_write(rpp);
-	if (ret)
-		goto exit_close;
-	printf("rerun application to read the translation.\n");
+		ret = remote_write(rpp);
+		if (ret)
+			goto exit_close;
+
+		if (nops > 0)
+			--nops;
+	} while(nops != 0);
 
 exit_close:
 	/* close the remote pool */
