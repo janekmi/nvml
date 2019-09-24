@@ -60,10 +60,10 @@
 
 /* the ranges of indices are describing the use of some allocations */
 #define LOG_BUFFER 0
-#define LOG_BUFFER_NUM 6
-#define RANGE (LOG_BUFFER + LOG_BUFFER_NUM)
-#define RANGE_NUM 6
-#define MIN_NOIDS (RANGE + RANGE_NUM)
+//#define LOG_BUFFER_NUM 6
+//#define RANGE (LOG_BUFFER + LOG_BUFFER_NUM)
+//#define RANGE_NUM 6
+//#define MIN_NOIDS (RANGE + RANGE_NUM)
 
 /*
  * REDO_OVERFLOW -- size for trigger out of memory
@@ -76,16 +76,16 @@
  * free_pool -- frees the pool from all allocated objects
  * and releases oids dynamic array
  */
-static void
-free_pool(PMEMoid *oids, size_t noids)
-{
-	for (size_t i = 0; i < noids; i++) {
-		pmemobj_free(&oids[i]);
-		UT_ASSERT(OID_IS_NULL(oids[i]));
-	}
-
-	FREE(oids);
-}
+//static void
+//free_pool(PMEMoid *oids, size_t noids)
+//{
+//	for (size_t i = 0; i < noids; i++) {
+//		pmemobj_free(&oids[i]);
+//		UT_ASSERT(OID_IS_NULL(oids[i]));
+//	}
+//
+//	FREE(oids);
+//}
 
 /*
  * fill_pool -- fills provided pmemobj pool with as many allocations
@@ -93,32 +93,32 @@ free_pool(PMEMoid *oids, size_t noids)
  * provided pool. The number of valid allocation stored in the
  * returned array is stored in the noids output argument.
  */
-static PMEMoid *
-fill_pool(PMEMobjpool *pop, size_t *noids)
-{
-	size_t oids_size = 2048; /* let's start with something big enough */
-	PMEMoid *oids = (PMEMoid *)MALLOC(oids_size * sizeof(PMEMoid));
-
-	*noids = 0;
-	int ret;
-	/* alloc as much space as possible */
-	for (size_t size = MAX_ALLOC; size >= MIN_ALLOC; size /= 2) {
-		ret = 0;
-
-		while (ret == 0) {
-			ret = pmemobj_alloc(pop, &oids[*noids], size,
-				0, NULL, NULL);
-			if (!ret)
-				(*noids)++;
-			if (*noids == oids_size) {
-				oids_size *= 2;
-				oids = (PMEMoid *)REALLOC(oids, oids_size *
-					sizeof(PMEMoid));
-			}
-		}
-	}
-	return oids;
-}
+//static PMEMoid *
+//fill_pool(PMEMobjpool *pop, size_t *noids)
+//{
+//	size_t oids_size = 2048; /* let's start with something big enough */
+//	PMEMoid *oids = (PMEMoid *)MALLOC(oids_size * sizeof(PMEMoid));
+//
+//	*noids = 0;
+//	int ret;
+//	/* alloc as much space as possible */
+//	for (size_t size = MAX_ALLOC; size >= MIN_ALLOC; size /= 2) {
+//		ret = 0;
+//
+//		while (ret == 0) {
+//			ret = pmemobj_alloc(pop, &oids[*noids], size,
+//				0, NULL, NULL);
+//			if (!ret)
+//				(*noids)++;
+//			if (*noids == oids_size) {
+//				oids_size *= 2;
+//				oids = (PMEMoid *)REALLOC(oids, oids_size *
+//					sizeof(PMEMoid));
+//			}
+//		}
+//	}
+//	return oids;
+//}
 
 /*
  * do_tx_max_alloc_tx_publish_abort -- fills the pool and then tries
@@ -468,7 +468,7 @@ do_tx_max_alloc_tx_publish(PMEMobjpool *pop)
 	UT_OUT("do_tx_max_alloc_tx_publish");
 	PMEMoid *allocated = NULL;
 	PMEMoid reservations[REDO_OVERFLOW];
-	size_t nallocated = 0;
+//	size_t nallocated = 0;
 	struct pobj_action act[REDO_OVERFLOW];
 
 	for (int i = 0; i < REDO_OVERFLOW; i++) {
@@ -476,13 +476,18 @@ do_tx_max_alloc_tx_publish(PMEMobjpool *pop)
 		UT_ASSERT(!OID_IS_NULL(reservations[i]));
 	}
 
-	allocated = fill_pool(pop, &nallocated);
-	UT_ASSERT(nallocated >= MIN_NOIDS);
+	allocated = MALLOC(sizeof(PMEMoid));
+	int ret = pmemobj_alloc(pop, &allocated[LOG_BUFFER], MAX_ALLOC, 0, NULL, NULL);
+	UT_ASSERT(ret == 0);
+
+//	allocated = fill_pool(pop, &nallocated);
+//	UT_ASSERT(nallocated >= MIN_NOIDS);
 
 	size_t buff_size = pmemobj_alloc_usable_size(allocated[LOG_BUFFER]);
 	void *buff_addr = pmemobj_direct(allocated[LOG_BUFFER]);
 
 	TX_BEGIN(pop) {
+		pmemobj_tx_log_auto_alloc(TX_LOG_TYPE_INTENT, 0);
 		pmemobj_tx_log_append_buffer(
 			TX_LOG_TYPE_INTENT, buff_addr, buff_size);
 		pmemobj_tx_publish(act, REDO_OVERFLOW);
@@ -492,7 +497,11 @@ do_tx_max_alloc_tx_publish(PMEMobjpool *pop)
 		UT_OUT("Can extend redo log with appended buffer");
 	} TX_END
 
-	free_pool(allocated, nallocated);
+//	free_pool(allocated, nallocated);
+
+	pmemobj_free(&allocated[LOG_BUFFER]);
+	UT_ASSERT(OID_IS_NULL(allocated[LOG_BUFFER]));
+	FREE(allocated);
 
 	for (int i = 0; i < REDO_OVERFLOW; ++i) {
 		pmemobj_free(&reservations[i]);
