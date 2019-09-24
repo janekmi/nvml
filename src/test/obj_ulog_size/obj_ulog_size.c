@@ -519,15 +519,17 @@ main(int argc, char *argv[])
 	if (pop2 == NULL)
 		UT_FATAL("!pmemobj_create");
 
-	do_tx_max_alloc_no_user_alloc_snap(pop);
-	do_tx_max_alloc_user_alloc_snap(pop);
-	do_tx_max_alloc_user_alloc_nested(pop);
-	do_tx_max_alloc_user_alloc_snap_multi(pop);
-	do_tx_auto_alloc_disabled(pop);
-	do_tx_max_alloc_wrong_pop_addr(pop, pop2);
-	do_tx_max_alloc_tx_publish_abort(pop);
-	do_tx_buffer_currently_used(pop);
-	do_tx_max_alloc_tx_publish(pop);
+	for (int i = 0; i < 5; ++i) {
+		do_tx_max_alloc_no_user_alloc_snap(pop);
+		do_tx_max_alloc_user_alloc_snap(pop);
+		do_tx_max_alloc_user_alloc_nested(pop);
+		do_tx_max_alloc_user_alloc_snap_multi(pop);
+		do_tx_auto_alloc_disabled(pop);
+		do_tx_max_alloc_wrong_pop_addr(pop, pop2);
+		do_tx_max_alloc_tx_publish_abort(pop);
+		do_tx_buffer_currently_used(pop);
+		do_tx_max_alloc_tx_publish(pop);
+	}
 
 	pmemobj_close(pop);
 	pmemobj_close(pop2);
