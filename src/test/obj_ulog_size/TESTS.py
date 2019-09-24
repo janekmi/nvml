@@ -44,8 +44,7 @@ class BASE(t.BaseTest):
         ctx.exec('obj_ulog_size', filepath, filepath1)
 
 class TEST0(BASE):
-    memcheck = t.DISABLE
-    pmemcheck = t.DISABLE
+    memcheck = t.ENABLE
 
 class TEST1(BASE):
     memcheck = t.ENABLE
