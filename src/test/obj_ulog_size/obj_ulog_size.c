@@ -450,6 +450,12 @@ do_tx_buffer_currently_used(PMEMobjpool *pop)
 	} TX_END
 
 	pmemobj_free(&oid_buff);
+
+	/* restore the default */
+	verify_user_buffers = 0;
+	ret = pmemobj_ctl_set(pop, "tx.debug.verify_user_buffers",
+			&verify_user_buffers);
+	UT_ASSERTeq(ret, 0);
 }
 
 /*
