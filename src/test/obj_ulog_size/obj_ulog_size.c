@@ -79,7 +79,7 @@
 static void
 free_pool(PMEMoid *oids, size_t noids)
 {
-	for (int i = 0; i < noids; i++) {
+	for (size_t i = 0; i < noids; i++) {
 		pmemobj_free(&oids[i]);
 		UT_ASSERT(OID_IS_NULL(oids[i]));
 	}
