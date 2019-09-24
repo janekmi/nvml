@@ -69,8 +69,8 @@
  * REDO_OVERFLOW -- size for trigger out of memory
  * during redo log extension
  */
-#define REDO_OVERFLOW ((size_t)((LANE_REDO_EXTERNAL_SIZE\
-		/ TX_INTENT_LOG_ENTRY_OVERHEAD) + 1))
+/* #define REDO_OVERFLOW ((size_t)((LANE_REDO_EXTERNAL_SIZE\
+		/ TX_INTENT_LOG_ENTRY_OVERHEAD) + 1)) */
 
 /*
  * free_pool -- frees the pool from all allocated objects
@@ -124,35 +124,35 @@ fill_pool(PMEMobjpool *pop, size_t *noids)
  * do_tx_max_alloc_tx_publish_abort -- fills the pool and then tries
  * to overfill redo log - transaction abort expected
  */
-static void
-do_tx_max_alloc_tx_publish_abort(PMEMobjpool *pop)
-{
-	UT_OUT("do_tx_max_alloc_tx_publish_abort");
-	PMEMoid *allocated = NULL;
-	PMEMoid reservations[REDO_OVERFLOW];
-	size_t nallocated = 0;
-	struct pobj_action act[REDO_OVERFLOW];
-
-	for (int i = 0; i < REDO_OVERFLOW; i++) {
-		reservations[i] = pmemobj_reserve(pop, &act[i], MIN_ALLOC, 0);
-		UT_ASSERT(!OID_IS_NULL(reservations[i]));
-	}
-
-	allocated = fill_pool(pop, &nallocated);
-	UT_ASSERT(nallocated >= MIN_NOIDS);
-
-	/* it should abort - cannot extend redo log */
-	TX_BEGIN(pop) {
-		pmemobj_tx_publish(act, REDO_OVERFLOW);
-	} TX_ONABORT {
-		UT_OUT("!Cannot extend redo log - the pool is full");
-	} TX_ONCOMMIT {
-		UT_FATAL("Can extend redo log despite the pool is full");
-	} TX_END
-
-	free_pool(allocated, nallocated);
-	pmemobj_cancel(pop, act, REDO_OVERFLOW);
-}
+//static void
+//do_tx_max_alloc_tx_publish_abort(PMEMobjpool *pop)
+//{
+//	UT_OUT("do_tx_max_alloc_tx_publish_abort");
+//	PMEMoid *allocated = NULL;
+//	PMEMoid reservations[REDO_OVERFLOW];
+//	size_t nallocated = 0;
+//	struct pobj_action act[REDO_OVERFLOW];
+//
+//	for (int i = 0; i < REDO_OVERFLOW; i++) {
+//		reservations[i] = pmemobj_reserve(pop, &act[i], MIN_ALLOC, 0);
+//		UT_ASSERT(!OID_IS_NULL(reservations[i]));
+//	}
+//
+//	allocated = fill_pool(pop, &nallocated);
+//	UT_ASSERT(nallocated >= MIN_NOIDS);
+//
+//	/* it should abort - cannot extend redo log */
+//	TX_BEGIN(pop) {
+//		pmemobj_tx_publish(act, REDO_OVERFLOW);
+//	} TX_ONABORT {
+//		UT_OUT("!Cannot extend redo log - the pool is full");
+//	} TX_ONCOMMIT {
+//		UT_FATAL("Can extend redo log despite the pool is full");
+//	} TX_END
+//
+//	free_pool(allocated, nallocated);
+//	pmemobj_cancel(pop, act, REDO_OVERFLOW);
+//}
 
 /*
  * do_tx_max_alloc_no_user_alloc_snap -- fills the pool and tries to do
@@ -462,42 +462,42 @@ do_tx_buffer_currently_used(PMEMobjpool *pop)
  * do_tx_max_alloc_tx_publish -- fills the pool and then tries
  * to overfill redo log with appended buffer
  */
-static void
-do_tx_max_alloc_tx_publish(PMEMobjpool *pop)
-{
-	UT_OUT("do_tx_max_alloc_tx_publish");
-	PMEMoid *allocated = NULL;
-	PMEMoid reservations[REDO_OVERFLOW];
-	size_t nallocated = 0;
-	struct pobj_action act[REDO_OVERFLOW];
-
-	for (int i = 0; i < REDO_OVERFLOW; i++) {
-		reservations[i] = pmemobj_reserve(pop, &act[i], MIN_ALLOC, 0);
-		UT_ASSERT(!OID_IS_NULL(reservations[i]));
-	}
-
-	allocated = fill_pool(pop, &nallocated);
-	UT_ASSERT(nallocated >= MIN_NOIDS);
-
-	size_t buff_size = pmemobj_alloc_usable_size(allocated[LOG_BUFFER]);
-	void *buff_addr = pmemobj_direct(allocated[LOG_BUFFER]);
-
-	TX_BEGIN(pop) {
-		pmemobj_tx_log_append_buffer(
-			TX_LOG_TYPE_INTENT, buff_addr, buff_size);
-		pmemobj_tx_publish(act, REDO_OVERFLOW);
-	} TX_ONABORT {
-		UT_FATAL("!Cannot extend redo log despite appended buffer");
-	} TX_ONCOMMIT {
-		UT_OUT("Can extend redo log with appended buffer");
-	} TX_END
-
-	free_pool(allocated, nallocated);
-
-	for (int i = 0; i < REDO_OVERFLOW; ++i) {
-		pmemobj_free(&reservations[i]);
-	}
-}
+//static void
+//do_tx_max_alloc_tx_publish(PMEMobjpool *pop)
+//{
+//	UT_OUT("do_tx_max_alloc_tx_publish");
+//	PMEMoid *allocated = NULL;
+//	PMEMoid reservations[REDO_OVERFLOW];
+//	size_t nallocated = 0;
+//	struct pobj_action act[REDO_OVERFLOW];
+//
+//	for (int i = 0; i < REDO_OVERFLOW; i++) {
+//		reservations[i] = pmemobj_reserve(pop, &act[i], MIN_ALLOC, 0);
+//		UT_ASSERT(!OID_IS_NULL(reservations[i]));
+//	}
+//
+//	allocated = fill_pool(pop, &nallocated);
+//	UT_ASSERT(nallocated >= MIN_NOIDS);
+//
+//	size_t buff_size = pmemobj_alloc_usable_size(allocated[LOG_BUFFER]);
+//	void *buff_addr = pmemobj_direct(allocated[LOG_BUFFER]);
+//
+//	TX_BEGIN(pop) {
+//		pmemobj_tx_log_append_buffer(
+//			TX_LOG_TYPE_INTENT, buff_addr, buff_size);
+//		pmemobj_tx_publish(act, REDO_OVERFLOW);
+//	} TX_ONABORT {
+//		UT_FATAL("!Cannot extend redo log despite appended buffer");
+//	} TX_ONCOMMIT {
+//		UT_OUT("Can extend redo log with appended buffer");
+//	} TX_END
+//
+//	free_pool(allocated, nallocated);
+//
+//	for (int i = 0; i < REDO_OVERFLOW; ++i) {
+//		pmemobj_free(&reservations[i]);
+//	}
+//}
 
 int
 main(int argc, char *argv[])
@@ -526,9 +526,9 @@ main(int argc, char *argv[])
 		do_tx_max_alloc_user_alloc_snap_multi(pop);
 		do_tx_auto_alloc_disabled(pop);
 		do_tx_max_alloc_wrong_pop_addr(pop, pop2);
-		do_tx_max_alloc_tx_publish_abort(pop);
+//		do_tx_max_alloc_tx_publish_abort(pop);
 		do_tx_buffer_currently_used(pop);
-		do_tx_max_alloc_tx_publish(pop);
+//		do_tx_max_alloc_tx_publish(pop);
 	}
 
 	pmemobj_close(pop);
