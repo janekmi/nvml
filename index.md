@@ -92,6 +92,23 @@ as for software developers for troubleshooting and debugging.
 
 See the [pmempool page](pmempool) for available commands and documentation.
 
+#### librpma
+
+**librpma** provides low-level support for remote access to
+*persistent memory* (pmem) utilizing RDMA-capable RNICs. The library can be
+used to remotely read and write a memory region over the RDMA protocol. It utilizes
+an appropriate persistency mechanism based on the remote node's platform
+capabilities.
+
+This library is for applications that use remote persistent memory directly
+to preserve complete control over data transmission process.
+
+>NOTE:
+This is an **experimental API** and should not be used in production
+environments.
+
+See the [librpma page](librpma) for documentation and examples.
+
 #### librpmem
 
 The **librpmem** provides low-level support for remote access to
