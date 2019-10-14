@@ -5,18 +5,14 @@ layout: pmdk
 
 #### The librpma library
 
-**librpmem** provides low-level support for remote access to
+**librpma** provides low-level support for remote access to
 *persistent memory* (pmem) utilizing RDMA-capable RNICs. The library can be
-used to replicate remotely a memory region over RDMA protocol.
-It utilizes appropriate persistency mechanism based on remote node's platform
-capabilities. The **librpmem** utilizes the **ssh** client to authenticate
-a user on remote node and for encryption of connection's out-of-band
-configuration data. See **SSH** section for details.
+used to remotely read and write a memory region over the RDMA protocol. It utilizes
+an appropriate persistency mechanism based on the remote node's platform
+capabilities.
 
-This library is for applications that use remote persistent memory directly,
-without the help of any library-supplied transactions or memory
-allocation. Higher-level libraries that build on **libpmem** are
-available and are recommended for most applications, see:
+This library is for applications that use remote persistent memory directly
+to preserve complete control over data transmission process.
 
 Man pages that contains a list of the **Linux** interfaces provided:
 
