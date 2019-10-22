@@ -35,6 +35,8 @@
  */
 
 #include <Windows.h>
+#include <stdbool.h>
+
 #include "libpmem2.h"
 #include "out.h"
 #include "config.h"
@@ -86,8 +88,8 @@ pmem2_config_set_handle(struct pmem2_config *cfg, HANDLE handle)
 int
 pmem2_config_fd_dup(struct pmem2_config *dst, const struct pmem2_config *src)
 {
-	/* the destination fd has to be invalid */
-	ASSERTeq(dst->fd, INVALID_HANDLE_VALUE);
+	/* the destination handle has to be invalid */
+	ASSERTeq(dst->handle, INVALID_HANDLE_VALUE);
 
 	/* do not duplicate an invalid file handle */
 	if (src->handle == INVALID_HANDLE_VALUE) {
