@@ -37,14 +37,15 @@ TOP := ../../..
 include $(TOP)/src/common.inc
 
 ifeq ($(BUILD_RPMEM), y)
-PROGS = manpage_conn
+PROGS = hello manpage_conn
 DIRS = communicator
 
-LIBS = -lrpmem -pthread
+LIBS = -lrpmem -lpmem -pthread
 else
 $(info NOTE: Skipping librpma examples because $(BUILD_RPMEM_INFO))
 endif
 
 include ../Makefile.inc
 
+hello: hello.o
 manpage_conn: manpage_common.o manpage_conn.o
