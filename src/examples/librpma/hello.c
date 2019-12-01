@@ -300,11 +300,12 @@ remote_init(struct base_t *b)
 	struct client_t *clnt;
 	struct server_t *svr;
 
-	switch(b->type) {
+	switch (b->type) {
 	case TYPE_CLIENT:
 		clnt = b->specific;
 		rpma_memory_local_new(b->zone, clnt->local.ptr, HELLO_SIZE,
-				RPMA_MR_WRITE_DST | RPMA_MR_READ_DST, &clnt->local.mem);
+				RPMA_MR_WRITE_DST | RPMA_MR_READ_DST,
+				&clnt->local.mem);
 
 		rpma_sequence_new(&clnt->init);
 		rpma_sequence_add_step(clnt->init, hello_init, clnt);
@@ -312,7 +313,8 @@ remote_init(struct base_t *b)
 
 		rpma_sequence_new(&clnt->revisit);
 		rpma_sequence_add_step(clnt->revisit, hello_read, clnt);
-		rpma_sequence_add_step(clnt->revisit, hello_translate_and_write, clnt);
+		rpma_sequence_add_step(clnt->revisit, hello_translate_and_write,
+				clnt);
 		rpma_sequence_add_step(clnt->revisit, hello_done, clnt);
 
 		pthread_create(&clnt->thread, NULL, dispatcher_thread_func, b);
@@ -320,7 +322,8 @@ remote_init(struct base_t *b)
 	case TYPE_SERVER:
 		svr = b->specific;
 		rpma_memory_local_new(b->zone, svr->ptr, HELLO_SIZE,
-				RPMA_MR_WRITE_DST | RPMA_MR_READ_DST, &svr->mem);
+				RPMA_MR_WRITE_DST | RPMA_MR_READ_DST,
+				&svr->mem);
 		rpma_memory_local_get_id(svr->mem, &svr->id);
 	}
 }
@@ -331,7 +334,7 @@ remote_fini(struct base_t *b)
 	struct client_t *clnt;
 	struct server_t *svr;
 
-	switch(b->type) {
+	switch (b->type) {
 	case TYPE_CLIENT:
 		clnt = b->specific;
 
@@ -362,7 +365,7 @@ parse_args(int argc, char *argv[], struct base_t *b)
 	b->addr = argv[2];
 	b->service = argv[3];
 
-	switch(b->type) {
+	switch (b->type) {
 	case TYPE_CLIENT:
 		break;
 	case TYPE_SERVER:
@@ -410,7 +413,7 @@ mem_init(struct base_t *b)
 	struct client_t *clnt;
 	struct server_t *svr;
 
-	switch(b->type) {
+	switch (b->type) {
 	case TYPE_CLIENT:
 		clnt = calloc(1, sizeof(struct client_t));
 		clnt->local.ptr = alloc_memory();
@@ -419,7 +422,8 @@ mem_init(struct base_t *b)
 	case TYPE_SERVER:
 		svr = calloc(1, sizeof(struct server_t));
 		svr->ptr = pmem_map_file(b->file, HELLO_SIZE,
-					PMEM_FILE_CREATE, O_RDWR, &svr->total_size, NULL);
+					PMEM_FILE_CREATE, O_RDWR,
+					&svr->total_size, NULL);
 		b->specific = svr;
 	}
 }
@@ -430,7 +434,7 @@ mem_fini(struct base_t *b)
 	struct client_t *clnt;
 	struct server_t *svr;
 
-	switch(b->type) {
+	switch (b->type) {
 	case TYPE_CLIENT:
 		clnt = b->specific;
 		free(clnt->local.ptr);
