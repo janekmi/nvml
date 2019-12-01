@@ -38,9 +38,9 @@ include $(TOP)/src/common.inc
 
 ifeq ($(BUILD_RPMEM), y)
 PROGS = hello manpage_conn
-DIRS = communicator
+#DIRS = communicator
 
-LIBS = -lrpmem -lpmem -pthread
+LIBS = -lrpma -lpmem -pthread
 else
 $(info NOTE: Skipping librpma examples because $(BUILD_RPMEM_INFO))
 endif
