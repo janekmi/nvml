@@ -76,6 +76,20 @@ LIBRPMA_1.0 {
 		rpma_connection_group_remove;
 		rpma_connection_group_enqueue;
 		rpma_connection_group_delete;
+		rpma_msg_get_ptr;
+		rpma_connection_send;
+		rpma_memory_local_new;
+		rpma_memory_local_get_ptr;
+		rpma_memory_local_get_size;
+		rpma_memory_local_get_id;
+		rpma_memory_local_delete;
+		rpma_memory_remote_new;
+		rpma_memory_remote_get_size;
+		rpma_memory_remote_delete;
+		rpma_connection_read;
+		rpma_connection_write;
+		rpma_connection_atomic_write;
+		rpma_connection_commit;
 		rpma_errormsg;
 	local:
 		*;
