@@ -56,13 +56,33 @@ rpma_config_set_service(struct rpma_config *cfg, const char *service)
 }
 
 int
-rpma_config_delete(struct rpma_config **cfg)
+rpma_config_set_msg_size(struct rpma_config *cfg, size_t msg_size)
 {
 	return RPMA_E_NOSUPP;
 }
 
 int
-rpma_connection_commit_wait(struct rpma_connection *conn)
+rpma_config_set_send_queue_length(struct rpma_config *cfg, size_t queue_len)
+{
+	return RPMA_E_NOSUPP;
+}
+
+int
+rpma_config_set_recv_queue_length(struct rpma_config *cfg, size_t queue_len)
+{
+	return RPMA_E_NOSUPP;
+}
+
+int
+rpma_config_set_queue_alloc_funcs(struct rpma_config *cfg,
+		rpma_malloc_func malloc_func, rpma_free_func free_func)
+{
+	return RPMA_E_NOSUPP;
+}
+
+
+int
+rpma_config_delete(struct rpma_config **cfg)
 {
 	return RPMA_E_NOSUPP;
 }

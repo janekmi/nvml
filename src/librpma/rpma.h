@@ -36,8 +36,6 @@
 #ifndef PMEM2_H
 #define PMEM2_H
 
-#include "libpmem2.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
