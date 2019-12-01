@@ -33,8 +33,7 @@
 #
 # examples/librpmem/communicator/Makefile -- build the communicator example
 #
-#PROGS = server client
-PROGS = client
+PROGS = server client
 
 LIBS = -lrpma -lpmem -pthread
 
