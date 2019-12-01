@@ -128,3 +128,51 @@ p_client_done(struct client_row *cr)
 	cr->status = CLIENT_MSG_DONE;
 	pmem_persist(&cr->status, sizeof(cr->status));
 }
+
+int
+ml_init(struct msg_log *ml, size_t size)
+{
+	return -1;
+}
+
+int
+ml_ready(struct msg_log *ml)
+{
+	return -1;
+}
+
+int
+mlog_append(struct msg_log *ml, struct client_row *cr)
+{
+	return -1;
+}
+
+uintptr_t
+ml_get_wptr(struct msg_log *ml)
+{
+	return UINTPTR_MAX;
+}
+
+int
+ml_set_rptr(struct msg_log *ml, uintptr_t rptr)
+{
+	return -1;
+}
+
+int
+ml_set_wptr(struct msg_log *ml, uintptr_t wptr)
+{
+	return -1;
+}
+
+size_t
+ml_offset(struct msg_log *ml, uintptr_t ptr)
+{
+	return SIZE_MAX;
+}
+
+uintptr_t
+ml_read(struct msg_log *ml)
+{
+	return UINTPTR_MAX;
+}
