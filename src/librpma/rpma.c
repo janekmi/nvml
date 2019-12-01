@@ -86,3 +86,218 @@ rpma_config_delete(struct rpma_config **cfg)
 {
 	return RPMA_E_NOSUPP;
 }
+
+int
+rpma_zone_new(struct rpma_config *cfg, struct rpma_zone **zone)
+{
+	return RPMA_E_NOSUPP;
+}
+
+int
+rpma_listen(struct rpma_zone *zone)
+{
+	return RPMA_E_NOSUPP;
+}
+
+int
+rpma_zone_delete(struct rpma_zone **zone)
+{
+	return RPMA_E_NOSUPP;
+}
+
+int
+rpma_dispatcher_new(struct rpma_zone *zone, struct rpma_dispatcher **disp)
+{
+	return RPMA_E_NOSUPP;
+}
+
+int
+rpma_dispatch(struct rpma_dispatcher *disp)
+{
+	return RPMA_E_NOSUPP;
+}
+
+int
+rpma_dispatcher_delete(struct rpma_dispatcher **disp)
+{
+	return RPMA_E_NOSUPP;
+}
+
+int
+rpma_zone_register_on_connection_event(struct rpma_zone *zone,
+		rpma_on_connection_event_func func)
+{
+	return RPMA_E_NOSUPP;
+}
+
+int
+rpma_zone_register_on_timeout(struct rpma_zone *zone,
+		rpma_on_timeout_func func, int timeout)
+{
+	return RPMA_E_NOSUPP;
+}
+
+int
+rpma_zone_unregister_on_timeout(struct rpma_zone *zone)
+{
+	return RPMA_E_NOSUPP;
+}
+
+int
+rpma_zone_wait_connections(struct rpma_zone *zone, void *uarg)
+{
+	return RPMA_E_NOSUPP;
+}
+
+int
+rpma_zone_wait_break(struct rpma_zone *zone)
+{
+	return RPMA_E_NOSUPP;
+}
+
+int
+rpma_connection_new(struct rpma_zone *zone, struct rpma_connection **conn)
+{
+	return RPMA_E_NOSUPP;
+}
+
+int
+rpma_connection_accept(struct rpma_connection *conn)
+{
+	return RPMA_E_NOSUPP;
+}
+
+int
+rpma_connection_reject(struct rpma_zone *zone)
+{
+	return RPMA_E_NOSUPP;
+}
+
+int
+rpma_connection_establish(struct rpma_connection *conn)
+{
+	return RPMA_E_NOSUPP;
+}
+
+int
+rpma_connection_disconnect(struct rpma_connection *conn)
+{
+	return RPMA_E_NOSUPP;
+}
+
+int
+rpma_connection_delete(struct rpma_connection **conn)
+{
+	return RPMA_E_NOSUPP;
+}
+
+int
+rpma_connection_set_custom_data(struct rpma_connection *conn, void *data)
+{
+	return RPMA_E_NOSUPP;
+}
+
+int
+rpma_connection_get_custom_data(struct rpma_connection *conn, void **data)
+{
+	return RPMA_E_NOSUPP;
+}
+
+int
+rpma_connection_get_zone(struct rpma_connection *conn, struct rpma_zone **zone)
+{
+	return RPMA_E_NOSUPP;
+}
+
+int
+rpma_connection_attach(struct rpma_connection *conn,
+		struct rpma_dispatcher *disp)
+{
+	return RPMA_E_NOSUPP;
+}
+
+int
+rpma_connection_detach(struct rpma_connection *conn)
+{
+	return RPMA_E_NOSUPP;
+}
+
+int
+rpma_connection_enqueue(struct rpma_connection *conn, rpma_queue_func func,
+		void *arg)
+{
+	return RPMA_E_NOSUPP;
+}
+
+int
+rpma_connection_register_on_notify(struct rpma_connection *conn,
+	rpma_on_transmission_notify_func func)
+{
+	return RPMA_E_NOSUPP;
+}
+
+int
+rpma_connection_register_on_recv(struct rpma_connection *conn,
+		rpma_on_connection_recv_func func)
+{
+	return RPMA_E_NOSUPP;
+}
+
+int
+rpma_sequence_new(struct rpma_sequence **sequence)
+{
+	return RPMA_E_NOSUPP;
+}
+
+int
+rpma_sequence_add_step(struct rpma_sequence *sequence,
+		rpma_queue_func func, void *arg)
+{
+	return RPMA_E_NOSUPP;
+}
+
+int
+rpma_connection_enqueue_sequence(struct rpma_connection *conn,
+		struct rpma_sequence *sequence)
+{
+	return RPMA_E_NOSUPP;
+}
+
+int
+rpma_sequence_delete(struct rpma_sequence **sequence)
+{
+	return RPMA_E_NOSUPP;
+}
+
+int
+rpma_connection_group_new(struct rpma_connection_group **group)
+{
+	return RPMA_E_NOSUPP;
+}
+
+int
+rpma_connection_group_add(struct rpma_connection_group *group,
+		struct rpma_connection *conn)
+{
+	return RPMA_E_NOSUPP;
+}
+
+int
+rpma_connection_group_remove(struct rpma_connection_group *group,
+		struct rpma_connection *conn)
+{
+	return RPMA_E_NOSUPP;
+}
+
+int
+rpma_connection_group_enqueue(struct rpma_connection_group *group,
+		rpma_queue_func func, void *arg)
+{
+	return RPMA_E_NOSUPP;
+}
+
+int
+rpma_connection_group_delete(struct rpma_connection_group **group)
+{
+	return RPMA_E_NOSUPP;
+}
