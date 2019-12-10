@@ -38,56 +38,6 @@
 #include "rpma.h"
 
 int
-rpma_config_new(struct rpma_config **cfg)
-{
-	return RPMA_E_NOSUPP;
-}
-
-int
-rpma_config_set_addr(struct rpma_config *cfg, const char *addr)
-{
-	return RPMA_E_NOSUPP;
-}
-
-int
-rpma_config_set_service(struct rpma_config *cfg, const char *service)
-{
-	return RPMA_E_NOSUPP;
-}
-
-int
-rpma_config_set_msg_size(struct rpma_config *cfg, size_t msg_size)
-{
-	return RPMA_E_NOSUPP;
-}
-
-int
-rpma_config_set_send_queue_length(struct rpma_config *cfg, size_t queue_len)
-{
-	return RPMA_E_NOSUPP;
-}
-
-int
-rpma_config_set_recv_queue_length(struct rpma_config *cfg, size_t queue_len)
-{
-	return RPMA_E_NOSUPP;
-}
-
-int
-rpma_config_set_queue_alloc_funcs(struct rpma_config *cfg,
-		rpma_malloc_func malloc_func, rpma_free_func free_func)
-{
-	return RPMA_E_NOSUPP;
-}
-
-
-int
-rpma_config_delete(struct rpma_config **cfg)
-{
-	return RPMA_E_NOSUPP;
-}
-
-int
 rpma_zone_new(struct rpma_config *cfg, struct rpma_zone **zone)
 {
 	return RPMA_E_NOSUPP;

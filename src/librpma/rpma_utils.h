@@ -31,24 +31,14 @@
  */
 
 /*
- * rpma.h -- internal definitions for librpma
+ * rpma_utils.h -- librpma utilities functions
  */
-#ifndef PMEM2_H
-#define PMEM2_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#ifndef RPMA_UTILS_H
+#define RPMA_UTILS_H 1
 
-#define RPMA_MAJOR_VERSION 0
-#define RPMA_MINOR_VERSION 0
+#include <errno.h>
 
-#define RPMA_LOG_PREFIX "librpma"
-#define RPMA_LOG_LEVEL_VAR "RPMA_LOG_LEVEL"
-#define RPMA_LOG_FILE_VAR "RPMA_LOG_FILE"
+#define RPMA_E_ERRNO (-errno)
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif
+#endif /* RPMA_UTILS_H */

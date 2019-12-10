@@ -31,24 +31,21 @@
  */
 
 /*
- * rpma.h -- internal definitions for librpma
+ * config.h -- internal definitions for librpma config
  */
-#ifndef PMEM2_H
-#define PMEM2_H
+#ifndef RPMA_CONFIG_H
+#define RPMA_CONFIG_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include <librpma.h>
 
-#define RPMA_MAJOR_VERSION 0
-#define RPMA_MINOR_VERSION 0
+struct rpma_config {
+	char *addr;
+	char *service;
+	size_t msg_size;
+	size_t send_queue_length;
+	size_t recv_queue_length;
+	rpma_malloc_func malloc;
+	rpma_free_func free;
+};
 
-#define RPMA_LOG_PREFIX "librpma"
-#define RPMA_LOG_LEVEL_VAR "RPMA_LOG_LEVEL"
-#define RPMA_LOG_FILE_VAR "RPMA_LOG_FILE"
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif
+#endif /* config.h */
