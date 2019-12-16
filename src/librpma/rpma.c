@@ -38,24 +38,6 @@
 #include "rpma.h"
 
 int
-rpma_zone_new(struct rpma_config *cfg, struct rpma_zone **zone)
-{
-	return RPMA_E_NOSUPP;
-}
-
-int
-rpma_listen(struct rpma_zone *zone)
-{
-	return RPMA_E_NOSUPP;
-}
-
-int
-rpma_zone_delete(struct rpma_zone **zone)
-{
-	return RPMA_E_NOSUPP;
-}
-
-int
 rpma_dispatcher_new(struct rpma_zone *zone, struct rpma_dispatcher **disp)
 {
 	return RPMA_E_NOSUPP;
@@ -69,38 +51,6 @@ rpma_dispatch(struct rpma_dispatcher *disp)
 
 int
 rpma_dispatcher_delete(struct rpma_dispatcher **disp)
-{
-	return RPMA_E_NOSUPP;
-}
-
-int
-rpma_zone_register_on_connection_event(struct rpma_zone *zone,
-		rpma_on_connection_event_func func)
-{
-	return RPMA_E_NOSUPP;
-}
-
-int
-rpma_zone_register_on_timeout(struct rpma_zone *zone,
-		rpma_on_timeout_func func, int timeout)
-{
-	return RPMA_E_NOSUPP;
-}
-
-int
-rpma_zone_unregister_on_timeout(struct rpma_zone *zone)
-{
-	return RPMA_E_NOSUPP;
-}
-
-int
-rpma_zone_wait_connections(struct rpma_zone *zone, void *uarg)
-{
-	return RPMA_E_NOSUPP;
-}
-
-int
-rpma_zone_wait_break(struct rpma_zone *zone)
 {
 	return RPMA_E_NOSUPP;
 }

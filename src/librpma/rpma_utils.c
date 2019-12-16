@@ -31,19 +31,17 @@
  */
 
 /*
- * rpma_utils.h -- librpma utilities functions
+ * rpma_utils.c -- entry points for librpma RPMA utils
  */
 
-#ifndef RPMA_UTILS_H
-#define RPMA_UTILS_H 1
+#include <librpma.h>
 
-#include <errno.h>
+#include "rpma_utils.h"
 
-#define RPMA_E_ERRNO (-errno)
-
-#define ERR_FI(e, fmt, args...)\
-	ERR(fmt ": %s", ## args, fi_strerror((e)))
-
-void rpma_utils_res_close(struct fid *res, const char *desc);
-
-#endif /* RPMA_UTILS_H */
+void
+rpma_utils_res_close(struct fid *res, const char *desc)
+{
+	int ret = fi_close(res);
+	if (ret)
+		ERR_FI(ret, "fi_close(%s)", desc);
+}

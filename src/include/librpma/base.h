@@ -49,12 +49,11 @@
 extern "C" {
 #endif
 
-#define RPMA_E_OK			0
-#define RPMA_E_EXTERNAL		1
-#define RPMA_E_NOSUPP		2
-#define RPMA_E_INVALID_MSG	3
-#define RPMA_E_UNHANDLED_EVENT	4
-
+#define RPMA_E_UNKNOWN				(-100000)
+#define RPMA_E_NOSUPP				(-100001)
+#define RPMA_E_NEGATIVE_TIMEOUT		(-100002)
+#define RPMA_E_NOT_LISTENING		(-100003)
+#define RPMA_E_EQ_READ				(-100004)
 
 /* config setup */
 

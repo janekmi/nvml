@@ -31,19 +31,26 @@
  */
 
 /*
- * rpma_utils.h -- librpma utilities functions
+ * zone.h -- internal definitions for librpma zone
  */
+#ifndef RPMA_ZONE_H
+#define RPMA_ZONE_H
 
-#ifndef RPMA_UTILS_H
-#define RPMA_UTILS_H 1
+#include <librpma.h>
 
-#include <errno.h>
+struct rpma_zone {
+	struct fi_info *info; /* fabric interface information */
+	struct fid_fabric *fabric; /* fabric domain */
+	struct fid_domain *domain; /* fabric protection domain */
+	struct fid_eq *eq; /* event queue */
 
-#define RPMA_E_ERRNO (-errno)
+	struct fid_pep *pep; /* passive endpoint - listener */
 
-#define ERR_FI(e, fmt, args...)\
-	ERR(fmt ": %s", ## args, fi_strerror((e)))
+	int wait_breaking;
 
-void rpma_utils_res_close(struct fid *res, const char *desc);
+	rpma_on_connection_event_func on_connection_event_func;
+	rpma_on_timeout_func on_timeout_func;
+	int timeout;
+};
 
-#endif /* RPMA_UTILS_H */
+#endif /* zone.h */
