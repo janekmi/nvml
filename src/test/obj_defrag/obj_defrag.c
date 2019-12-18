@@ -41,78 +41,85 @@
 #define MAX_VERTICES 50
 #define MAX_EDGES 10
 
-typedef struct node
+struct node
 {
-	int node_id;
-	int number_of_edges;
-	struct node* next;
-} PMEMoid;
+	unsigned node_id;
+	unsigned number_of_edges;
+	unsigned *edges;
+};
 
 struct Graph
 {
-	int numberV;
-	struct node* node[];
+	unsigned numberV;
+	struct node node[];
 };
 
-static struct node* create_node(int v)
+static unsigned
+rand_nonzero(int max)
 {
-	int number_of_edges = rand() % MAX_EDGES;
-	struct node* newNode = malloc((long unsigned int)number_of_edges * sizeof(struct node*));
-	newNode->node_id = v;
-	newNode->number_of_edges = number_of_edges;
-	//newNode->edges[NumberOfEdges];
-	return newNode;
+	int ret;
+	do {
+		ret = rand() % max;
+	} while(ret == 0);
+
+	return (unsigned)ret;
 }
 
-static struct Graph* create_graph(int numberOfVertices)
+static void create_node(struct node *node, unsigned v)
 {
-	struct Graph* graph = malloc(sizeof(struct Graph));
+	unsigned number_of_edges = rand_nonzero(MAX_EDGES);
+	node->node_id = v;
+	node->number_of_edges = number_of_edges;
+	node->edges = malloc(sizeof(int) * number_of_edges);
+}
+
+static struct Graph* create_graph(unsigned numberOfVertices)
+{
+	struct Graph* graph = malloc(sizeof(struct Graph) + sizeof(struct node) * numberOfVertices);
 	graph->numberV = numberOfVertices;
 
-	for (int i = 0; i < numberOfVertices; i++) {
-		graph->node[i] = create_node(i);
+	for (unsigned i = 0; i < numberOfVertices; i++) {
+		create_node(&graph->node[i], i);
 	}
 	return graph;
 }
 
-static struct node* get_node(struct Graph* graph, int id_node)
+static struct node* get_node(struct Graph* graph, unsigned id_node)
 {
 	struct node *node;
 
-	node = graph->node[id_node];
+	node = &graph->node[id_node];
 	return node;
 }
 
-static void add_edge(struct Graph* graph, int numberOfVertices)
+static void add_edge(struct Graph* graph)
 {
-	int vertexCounter = 0;
-	int edgeCounter = 0;
+	unsigned vertexCounter = 0;
+	unsigned edgeCounter = 0;
 	struct node* node;
-	for (vertexCounter = 0; vertexCounter < numberOfVertices; vertexCounter++) {
+	for (vertexCounter = 0; vertexCounter < graph->numberV; vertexCounter++) {
 		node = get_node(graph, vertexCounter);
-		int number_of_edges = node->number_of_edges;
+		unsigned number_of_edges = node->number_of_edges;
 		//printf("Vertices: %d", node->node_id);
 		for (edgeCounter = 0; edgeCounter < number_of_edges; edgeCounter++) {
 			if (rand()%2 == 1){
-				srand ( time(NULL) );
-				int linkedVertex = rand() % (numberOfVertices);
-				node->next = graph->node[linkedVertex];
+				unsigned linkedVertex = (unsigned)rand() % graph->numberV;
+				node->edges[edgeCounter] = linkedVertex;
 				//printf("%d, ", linkedVertex);
 			}
 		}
 	}
 }
 
-static void print_graph(struct Graph* graph, int numberOfVertices)
+static void print_graph(struct Graph* graph)
 {
 	struct node* node;
-	for (int i = 0; i < numberOfVertices; i++) {
+	for (unsigned i = 0; i < graph->numberV; i++) {
 		node = get_node(graph, i);
-		int edge = node ->number_of_edges;
-		printf("\nVertices: %d", node->node_id);
-		for(int i = 0; i < edge; i++){
-			printf("-> %d", node->node_id);
-			node = node->next;
+		unsigned edges_num = node ->number_of_edges;
+		printf("\nVertex: %d\n", node->node_id);
+		for(unsigned i = 0; i < edges_num; i++){
+			printf("%d, ", node->edges[i]);
 		}
 		printf("\n");
 	}
@@ -121,15 +128,13 @@ static void print_graph(struct Graph* graph, int numberOfVertices)
 int main(){
 	/*number of nodes in a graph*/
 	srand ( time(NULL) );
-	int numberOfVertices = rand() % MAX_VERTICES;
+	unsigned numberOfVertices = rand_nonzero(MAX_VERTICES);
+	printf("numberOfVertices: %d \n", numberOfVertices);
 
 	/*graphs is 2 dimensional array of pointers*/
-	if( numberOfVertices == 0)
-		numberOfVertices++;
 	struct Graph* graph = create_graph(numberOfVertices);
-	add_edge(graph, numberOfVertices);
-	printf("numberOfVertices: %d \n", numberOfVertices);
-	print_graph(graph, numberOfVertices);
+	add_edge(graph);
+	print_graph(graph);
 
 	/*
 	 * mix
