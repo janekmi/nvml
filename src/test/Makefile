@@ -86,6 +86,7 @@ OBJ_TESTS = \
 	obj_ctl_debug\
 	obj_ctl_heap_size\
 	obj_ctl_stats\
+	obj_defrag\
 	obj_debug\
 	obj_direct\
 	obj_direct_volatile\
