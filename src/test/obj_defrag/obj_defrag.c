@@ -102,11 +102,9 @@ static void add_edge(struct Graph* graph)
 		unsigned number_of_edges = node->number_of_edges;
 		//printf("Vertices: %d", node->node_id);
 		for (edgeCounter = 0; edgeCounter < number_of_edges; edgeCounter++) {
-			if (rand()%2 == 1){
-				unsigned linkedVertex = (unsigned)rand() % graph->numberV;
-				node->edges[edgeCounter] = linkedVertex;
-				//printf("%d, ", linkedVertex);
-			}
+			unsigned linkedVertex = (unsigned)rand() % graph->numberV;
+			node->edges[edgeCounter] = linkedVertex;
+			//printf("%d, ", linkedVertex);
 		}
 	}
 }
