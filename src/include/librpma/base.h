@@ -54,6 +54,7 @@ extern "C" {
 #define RPMA_E_NEGATIVE_TIMEOUT		(-100002)
 #define RPMA_E_NOT_LISTENING		(-100003)
 #define RPMA_E_EQ_READ				(-100004)
+#define RPMA_E_UNHANDLED_EVENT		(-100005)
 
 /* config setup */
 

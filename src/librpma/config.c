@@ -68,7 +68,7 @@ rpma_config_new(struct rpma_config **cfg)
 
 	*cfg = ptr;
 
-	return RPMA_E_OK;
+	return 0;
 }
 
 int
@@ -79,7 +79,7 @@ rpma_config_set_addr(struct rpma_config *cfg, const char *addr)
 	if (!cfg->addr)
 		return RPMA_E_ERRNO;
 
-	return RPMA_E_OK;
+	return 0;
 }
 
 int
@@ -90,28 +90,28 @@ rpma_config_set_service(struct rpma_config *cfg, const char *service)
 	if (!cfg->service)
 		return RPMA_E_ERRNO;
 
-	return RPMA_E_OK;
+	return 0;
 }
 
 int
 rpma_config_set_msg_size(struct rpma_config *cfg, size_t msg_size)
 {
 	cfg->msg_size = msg_size;
-	return RPMA_E_OK;
+	return 0;
 }
 
 int
 rpma_config_set_send_queue_length(struct rpma_config *cfg, size_t queue_len)
 {
 	cfg->send_queue_length = queue_len;
-	return RPMA_E_OK;
+	return 0;
 }
 
 int
 rpma_config_set_recv_queue_length(struct rpma_config *cfg, size_t queue_len)
 {
 	cfg->recv_queue_length = queue_len;
-	return RPMA_E_OK;
+	return 0;
 }
 
 int
@@ -120,7 +120,7 @@ rpma_config_set_queue_alloc_funcs(struct rpma_config *cfg,
 {
 	cfg->malloc = malloc_func;
 	cfg->free = free_func;
-	return RPMA_E_OK;
+	return 0;
 }
 
 int
@@ -137,5 +137,5 @@ rpma_config_delete(struct rpma_config **cfg)
 	Free(ptr);
 	*cfg = NULL;
 
-	return RPMA_E_OK;
+	return 0;
 }

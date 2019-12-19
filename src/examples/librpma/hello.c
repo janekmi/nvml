@@ -132,7 +132,7 @@ hello_init(struct rpma_connection *conn, void *uarg)
 	rpma_connection_write(conn, clnt->remote.mem, 0, clnt->local.mem, 0,
 			HELLO_SIZE);
 	rpma_connection_commit(conn);
-	return RPMA_E_OK;
+	return 0;
 }
 
 static int
@@ -142,7 +142,7 @@ hello_read(struct rpma_connection *conn, void *uarg)
 	printf("read message from the target...\n");
 	rpma_connection_read(conn, clnt->local.mem, 0, clnt->remote.mem, 0,
 			HELLO_SIZE);
-	return RPMA_E_OK;
+	return 0;
 }
 
 static int
@@ -160,14 +160,14 @@ hello_translate_and_write(struct rpma_connection *conn, void *uarg)
 			HELLO_SIZE);
 	rpma_connection_commit(conn);
 
-	return RPMA_E_OK;
+	return 0;
 }
 
 static int
 hello_done(struct rpma_connection *conn, void *uarg)
 {
 	rpma_connection_disconnect(conn);
-	return RPMA_E_OK;
+	return 0;
 }
 
 static int
@@ -186,7 +186,7 @@ on_connection_recv(struct rpma_connection *conn, void *ptr, size_t length,
 	else
 		rpma_connection_enqueue_sequence(b->conn, clnt->revisit);
 
-	return RPMA_E_OK;
+	return 0;
 }
 
 static int
@@ -203,7 +203,7 @@ send_msg(struct rpma_connection *conn, void *uarg)
 
 	rpma_connection_send(conn, msg);
 
-	return RPMA_E_OK;
+	return 0;
 }
 
 static int
@@ -262,7 +262,7 @@ on_connection_event(struct rpma_zone *zone, uint64_t event,
 		return RPMA_E_UNHANDLED_EVENT;
 	}
 
-	return RPMA_E_OK;
+	return 0;
 }
 
 static void *

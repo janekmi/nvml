@@ -38,6 +38,7 @@
 #define RPMA_UTILS_H 1
 
 #include <errno.h>
+#include <rdma/fabric.h>
 
 #define RPMA_E_ERRNO (-errno)
 
