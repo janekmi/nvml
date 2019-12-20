@@ -67,9 +67,18 @@ graph_defrag(PMEMobjpool *pop, struct pgraph *pgraph)
 
 	UT_ASSERTeq(oidi, oidcnt);
 
+	/* check if all oids are valid */
 	for (unsigned i = 0; i < oidcnt; ++i) {
 		void *ptr = pmemobj_direct(*oidv[i]);
 		UT_ASSERTne(ptr, NULL);
+	}
+
+	/* check if all oids appear only once */
+	for (unsigned i = 0; i < oidcnt - 1; ++i) {
+		for (unsigned j = i + 1; j < oidcnt; ++j) {
+			printf("%u %u\n", i, j);
+			UT_ASSERTne(oidv[i], oidv[j]);
+		}
 	}
 
 	struct pobj_defrag_result result;
