@@ -76,7 +76,6 @@ graph_defrag(PMEMobjpool *pop, struct pgraph *pgraph)
 	/* check if all oids appear only once */
 	for (unsigned i = 0; i < oidcnt - 1; ++i) {
 		for (unsigned j = i + 1; j < oidcnt; ++j) {
-			printf("%u %u\n", i, j);
 			UT_ASSERTne(oidv[i], oidv[j]);
 		}
 	}
