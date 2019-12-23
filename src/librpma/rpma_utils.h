@@ -39,11 +39,14 @@
 
 #include <errno.h>
 #include <rdma/fabric.h>
+#include <rdma/fi_errno.h>
+
+#include "out.h"
 
 #define RPMA_E_ERRNO (-errno)
 
 #define ERR_FI(e, fmt, args...)\
-	ERR(fmt ": %s", ## args, fi_strerror((e)))
+	ERR(fmt ": %s", ## args, fi_strerror((int)(e)))
 
 void rpma_utils_res_close(struct fid *res, const char *desc);
 

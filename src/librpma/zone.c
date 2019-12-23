@@ -35,6 +35,8 @@
  */
 
 #include <rdma/fabric.h>
+#include <rdma/fi_eq.h>
+#include <rdma/fi_endpoint.h>
 
 #include <librpma.h>
 
@@ -42,6 +44,7 @@
 #include "config.h"
 #include "rpma_utils.h"
 #include "alloc.h"
+#include "valgrind_internal.h"
 
 #define PROVIDER_STR "sockets" /* XXX */
 #define RX_TX_SIZE 500 /* XXX */
@@ -100,7 +103,7 @@ hints_new(struct fi_info **hints_ptr)
 
 	*hints_ptr = hints;
 
-	return RPMA_E_OK;
+	return 0;
 
 err_strdup:
 	Free(hints);
@@ -160,7 +163,7 @@ eq_new(struct fid_fabric *fabric, struct fid_eq **eq_ptr)
 		.wait_set = NULL,
 	};
 
-	ret = fi_eq_open(fabric, &eq_attr, eq_ptr, NULL);
+	int ret = fi_eq_open(fabric, &eq_attr, eq_ptr, NULL);
 	if (ret) {
 		ERR_FI(ret, "fi_eq_open");
 		return ret;
@@ -195,28 +198,28 @@ zone_init(struct rpma_config *cfg, struct rpma_zone *zone)
 	return 0;
 
 err_eq:
-	rpma_utils_res_close(zone->domain->fid, "domain");
+	rpma_utils_res_close(&zone->domain->fid, "domain");
 err_domain:
-	rpma_utils_res_close(zone->fabric->fid, "fabric");
+	rpma_utils_res_close(&zone->fabric->fid, "fabric");
 err_fabric:
 	info_delete(&zone->info);
 	return ret;
 }
 
-void
+static void
 zone_fini(struct rpma_zone *zone)
 {
 	if (zone->pep)
-		rpma_utils_res_close(zone->pep->fid, "pep");
+		rpma_utils_res_close(&zone->pep->fid, "pep");
 
 	if (zone->eq)
-		rpma_utils_res_close(zone->eq->fid, "eq");
+		rpma_utils_res_close(&zone->eq->fid, "eq");
 
 	if (zone->domain)
-			rpma_utils_res_close(zone->domain->fid, "domain");
+			rpma_utils_res_close(&zone->domain->fid, "domain");
 
 	if (zone->fabric)
-			rpma_utils_res_close(zone->fabric->fid, "fabric");
+			rpma_utils_res_close(&zone->fabric->fid, "fabric");
 
 	info_delete(&zone->info);
 }
@@ -255,7 +258,7 @@ err_free:
 int
 rpma_listen(struct rpma_zone *zone)
 {
-	int ret = fi_passive_ep(zone->fabric, zone->fi, &zone->pep, NULL);
+	int ret = fi_passive_ep(zone->fabric, zone->info, &zone->pep, NULL);
 	if (ret) {
 		ERR_FI(ret, "fi_passive_ep");
 		return ret;
@@ -270,7 +273,7 @@ rpma_listen(struct rpma_zone *zone)
 	return 0;
 
 err_pep_bind:
-	fi_close(zone->pep->fid);
+	fi_close(&zone->pep->fid);
 	zone->pep = NULL;
 	return ret;
 }
@@ -380,7 +383,7 @@ rpma_zone_wait_connections(struct rpma_zone *zone, void *uarg)
 	while (zone_is_waiting(zone)) {
 		ret = eq_read(zone->eq, &entry, &event, zone->timeout);
 		if (ret == EQ_TIMEOUT) {
-			if (zone_on_timeout(zone))
+			if (zone_on_timeout(zone, uarg))
 				break;
 			continue;
 		} else if (ret == EQ_ERR) {
@@ -390,17 +393,17 @@ rpma_zone_wait_connections(struct rpma_zone *zone, void *uarg)
 
 		switch (event) {
 		case FI_CONNREQ:
-			ret = rpmemd_fip_accept_one(fip, entry.info,
-					&fip->lanes[nreq]);
-			if (ret)
-				goto err_accept_one;
+//			ret = rpmemd_fip_accept_one(fip, entry.info,
+//					&fip->lanes[nreq]);
+//			if (ret)
+//				goto err_accept_one;
 			nreq++;
 			break;
 		case FI_CONNECTED:
 			ncon++;
 			break;
 		case FI_SHUTDOWN:
-			connecting = 0;
+//			connecting = 0;
 			break;
 		default:
 			ERR("unexpected event received (%u)", event);
