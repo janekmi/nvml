@@ -387,17 +387,19 @@ zone_on_timeout(struct rpma_zone *zone, void *uarg)
 	return func(zone, uarg);
 }
 
-static void
+static struct rpma_connection *
 connection_find(struct rpma_zone *zone, fid_t fid)
 {
 	struct rpma_connection to_find;
-	to_find.ep = Malloc(struct fid_ep);
+	to_find.ep = Malloc(sizeof(struct fid_ep));
 	to_find.ep->fid = fid;
 
 	struct ravl_node *node = ravl_find(zone->connections, &to_find, RAVL_PREDICATE_EQUAL);
 	struct rpma_connection *conn;
 	if (node)
 		conn = ravl_data(node);
+
+	return conn;
 }
 
 int
@@ -405,7 +407,6 @@ rpma_zone_wait_connections(struct rpma_zone *zone, void *uarg)
 {
 	if (!zone->pep)
 		return RPMA_E_NOT_LISTENING;
-
 
 	zone->uarg = uarg;
 
@@ -428,13 +429,13 @@ rpma_zone_wait_connections(struct rpma_zone *zone, void *uarg)
 		case FI_CONNREQ:
 			zone->conn_req_info = entry->info;
 			ret = zone->on_connection_event_func(zone, RPMA_CONNECTION_EVENT_INCOMING, NULL, uarg);
-			rpma_utils_freeinfo(&zone->conn_req_info);
+			rpma_utils_freeinfo(zone->conn_req_info);
 			if (ret)
 				return ret;
 			++zone->active_connections;
 			break;
 		case FI_SHUTDOWN:
-			connection_find(entry->fid)
+			connection_find(zone, entry.fid);
 			break;
 		default:
 			ERR("unexpected event received (%u)", event);
