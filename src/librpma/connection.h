@@ -31,32 +31,23 @@
  */
 
 /*
- * zone.h -- internal definitions for librpma zone
+ * connection.h -- internal definitions for librpma connection
  */
-#ifndef RPMA_ZONE_H
-#define RPMA_ZONE_H
+#ifndef RPMA_CONNECTION_H
+#define RPMA_CONNECTION_H
 
 #include <librpma.h>
 
-struct rpma_zone {
-	struct fi_info *info; /* fabric interface information */
-	struct fid_fabric *fabric; /* fabric domain */
-	struct fid_domain *domain; /* fabric protection domain */
-	struct fid_eq *eq; /* event queue */
+struct rpma_connection {
+	struct rpma_zone *zone;
 
-	struct fid_pep *pep; /* passive endpoint - listener */
-	struct fi_info *conn_req_info;
-	void *uarg;
-	uint64_t active_connections;
-	struct ravl *connections;
+	struct fid_ep *ep;
+	struct fid_cq *cq;
 
-	int wait_breaking;
+	rpma_on_transmission_notify_func on_transmission_notify_func;
+	rpma_on_connection_recv_func on_connection_recv_func;
 
-	rpma_on_connection_event_func on_connection_event_func;
-	rpma_on_timeout_func on_timeout_func;
-	int timeout;
+	void *custom_data;
 };
 
-int rpma_zone_wait_connected(struct rpma_zone *zone, struct rpma_connection *conn);
-
-#endif /* zone.h */
+#endif /* connection.h */

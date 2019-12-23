@@ -40,11 +40,13 @@
 
 #include <librpma.h>
 
+#include "ravl.h"
 #include "zone.h"
 #include "config.h"
 #include "rpma_utils.h"
 #include "alloc.h"
 #include "valgrind_internal.h"
+#include "connection.h"
 
 #define PROVIDER_STR "sockets" /* XXX */
 #define RX_TX_SIZE 500 /* XXX */
@@ -221,6 +223,19 @@ zone_fini(struct rpma_zone *zone)
 	info_delete(&zone->info);
 }
 
+static int
+connection_compare(const void *lhs, const void *rhs)
+{
+	const struct rpma_connection *l = lhs;
+	const struct rpma_connection *r = rhs;
+
+	int64_t diff = (int64_t)l->ep->fid - (int64_t)r->ep->fid;
+	if (diff != 0)
+		return diff > 0 ? 1 : -1;
+
+	return 0;
+}
+
 int
 rpma_zone_new(struct rpma_config *cfg, struct rpma_zone **zone)
 {
@@ -237,6 +252,7 @@ rpma_zone_new(struct rpma_config *cfg, struct rpma_zone **zone)
 	ptr->conn_req_info = NULL;
 	ptr->uarg = NULL;
 	ptr->active_connections = 0;
+	ptr->connections = ravl_new(connection_compare);
 
 	ptr->wait_breaking = 0;
 
@@ -371,6 +387,19 @@ zone_on_timeout(struct rpma_zone *zone, void *uarg)
 	return func(zone, uarg);
 }
 
+static void
+connection_find(struct rpma_zone *zone, fid_t fid)
+{
+	struct rpma_connection to_find;
+	to_find.ep = Malloc(struct fid_ep);
+	to_find.ep->fid = fid;
+
+	struct ravl_node *node = ravl_find(zone->connections, &to_find, RAVL_PREDICATE_EQUAL);
+	struct rpma_connection *conn;
+	if (node)
+		conn = ravl_data(node);
+}
+
 int
 rpma_zone_wait_connections(struct rpma_zone *zone, void *uarg)
 {
@@ -405,7 +434,7 @@ rpma_zone_wait_connections(struct rpma_zone *zone, void *uarg)
 			++zone->active_connections;
 			break;
 		case FI_SHUTDOWN:
-			/* XXX */
+			connection_find(entry->fid)
 			break;
 		default:
 			ERR("unexpected event received (%u)", event);
@@ -439,10 +468,11 @@ rpma_zone_wait_connected(struct rpma_zone *zone, struct rpma_connection *conn)
 
 		switch (event) {
 		case FI_CONNECTED:
-			if (entry.fid == conn->ep->fid)
-				return 0;
-			ERR("unexpected fid received (%p)", entry.fid);
-			ret = RPMA_E_EQ_EVENT_DATA;
+			if ((uint64_t)entry.fid != (uint64_t)conn->ep->fid) {
+				ERR("unexpected fid received (%p)", entry.fid);
+				ret = RPMA_E_EQ_EVENT_DATA;
+			}
+			ravl_insert(zone->connections, conn);
 			break;
 		default:
 			ERR("unexpected event received (%u)", event);
