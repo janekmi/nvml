@@ -44,10 +44,13 @@
 #include "out.h"
 
 #define RPMA_E_ERRNO (-errno)
+#define RPMA_E_FI_ERRNO (errno)
 
 #define ERR_FI(e, fmt, args...)\
 	ERR(fmt ": %s", ## args, fi_strerror((int)(e)))
 
 void rpma_utils_res_close(struct fid *res, const char *desc);
+
+void rpma_utils_freeinfo(struct fi_info **info);
 
 #endif /* RPMA_UTILS_H */

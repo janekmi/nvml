@@ -45,3 +45,10 @@ rpma_utils_res_close(struct fid *res, const char *desc)
 	if (ret)
 		ERR_FI(ret, "fi_close(%s)", desc);
 }
+
+void
+rpma_utils_freeinfo(struct fi_info **info)
+{
+	fi_freeinfo(*info);
+	*info = NULL;
+}

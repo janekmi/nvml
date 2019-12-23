@@ -44,6 +44,7 @@ SOURCE =\
 	$(COMMON)/out.c\
 	$(COMMON)/util.c\
 	$(COMMON)/util_posix.c\
+	connection.c\
 	config.c\
 	librpma.c\
 	rpma.c\

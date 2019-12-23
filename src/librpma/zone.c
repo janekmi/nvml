@@ -120,9 +120,7 @@ hints_delete(struct fi_info **hints_ptr)
 		hints->fabric_attr->prov_name = NULL;
 	}
 
-	fi_freeinfo(hints);
-
-	*hints_ptr = NULL;
+	rpma_utils_freeinfo(hints_ptr);
 }
 
 static int
@@ -148,8 +146,7 @@ err_getinfo:
 static void
 info_delete(struct fi_info **info_ptr)
 {
-	fi_freeinfo(*info_ptr);
-	*info_ptr = NULL;
+	rpma_utils_freeinfo(info_ptr);
 }
 
 static int
@@ -235,7 +232,13 @@ rpma_zone_new(struct rpma_config *cfg, struct rpma_zone **zone)
 	ptr->fabric = NULL;
 	ptr->domain = NULL;
 	ptr->eq = NULL;
+
 	ptr->pep = NULL;
+	ptr->conn_req_info = NULL;
+	ptr->uarg = NULL;
+	ptr->active_connections = 0;
+
+	ptr->wait_breaking = 0;
 
 	ptr->on_connection_event_func = NULL;
 	ptr->on_timeout_func = NULL;
@@ -273,7 +276,7 @@ rpma_listen(struct rpma_zone *zone)
 	return 0;
 
 err_pep_bind:
-	fi_close(&zone->pep->fid);
+	rpma_utils_res_close(&zone->pep->fid, "pep");
 	zone->pep = NULL;
 	return ret;
 }
@@ -374,11 +377,12 @@ rpma_zone_wait_connections(struct rpma_zone *zone, void *uarg)
 	if (!zone->pep)
 		return RPMA_E_NOT_LISTENING;
 
+
+	zone->uarg = uarg;
+
 	int ret;
 	struct fi_eq_cm_entry entry;
 	uint32_t event;
-	unsigned nreq = 0; /* number of connection requests */
-	unsigned ncon = 0; /* number of connected endpoints */
 
 	while (zone_is_waiting(zone)) {
 		ret = eq_read(zone->eq, &entry, &event, zone->timeout);
@@ -393,26 +397,61 @@ rpma_zone_wait_connections(struct rpma_zone *zone, void *uarg)
 
 		switch (event) {
 		case FI_CONNREQ:
-//			ret = rpmemd_fip_accept_one(fip, entry.info,
-//					&fip->lanes[nreq]);
-//			if (ret)
-//				goto err_accept_one;
-			nreq++;
-			break;
-		case FI_CONNECTED:
-			ncon++;
+			zone->conn_req_info = entry->info;
+			ret = zone->on_connection_event_func(zone, RPMA_CONNECTION_EVENT_INCOMING, NULL, uarg);
+			rpma_utils_freeinfo(&zone->conn_req_info);
+			if (ret)
+				return ret;
+			++zone->active_connections;
 			break;
 		case FI_SHUTDOWN:
-//			connecting = 0;
+			/* XXX */
 			break;
 		default:
 			ERR("unexpected event received (%u)", event);
-			ret = RPMA_E_EQ_READ;
+			ret = RPMA_E_EQ_EVENT;
 			break;
 		}
 	}
 
 	return RPMA_E_NOSUPP;
+}
+
+int
+rpma_zone_wait_connected(struct rpma_zone *zone, struct rpma_connection *conn)
+{
+	ASSERTne(zone->pep, NULL);
+
+	int ret;
+	struct fi_eq_cm_entry entry;
+	uint32_t event;
+
+	while (zone_is_waiting(zone)) {
+		ret = eq_read(zone->eq, &entry, &event, zone->timeout);
+		if (ret == EQ_TIMEOUT) {
+			if (zone_on_timeout(zone, zone->uarg))
+				break;
+			continue;
+		} else if (ret == EQ_ERR) {
+			ret = RPMA_E_EQ_READ;
+			break;
+		}
+
+		switch (event) {
+		case FI_CONNECTED:
+			if (entry.fid == conn->ep->fid)
+				return 0;
+			ERR("unexpected fid received (%p)", entry.fid);
+			ret = RPMA_E_EQ_EVENT_DATA;
+			break;
+		default:
+			ERR("unexpected event received (%u)", event);
+			ret = RPMA_E_EQ_EVENT;
+			break;
+		}
+	}
+
+	return ret;
 }
 
 int

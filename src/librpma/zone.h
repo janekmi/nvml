@@ -45,6 +45,9 @@ struct rpma_zone {
 	struct fid_eq *eq; /* event queue */
 
 	struct fid_pep *pep; /* passive endpoint - listener */
+	struct fi_info *conn_req_info;
+	void *uarg;
+	uint64_t active_connections;
 
 	int wait_breaking;
 
@@ -52,5 +55,7 @@ struct rpma_zone {
 	rpma_on_timeout_func on_timeout_func;
 	int timeout;
 };
+
+int rpma_zone_wait_connected(struct rpma_zone *zone, struct rpma_connection *conn);
 
 #endif /* zone.h */
