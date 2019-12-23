@@ -59,9 +59,11 @@ struct pgraph
 	PMEMoid nodes[];
 };
 
-size_t pgraph_size_estimate(struct vgraph *vgraph, struct pgraph_params *params);
+size_t pgraph_size_estimate(struct vgraph *vgraph,
+		struct pgraph_params *params);
 
-struct pgraph *pgraph_new(PMEMobjpool *pop, struct vgraph *vgraph, struct pgraph_params *params);
+struct pgraph *pgraph_new(PMEMobjpool *pop, struct vgraph *vgraph,
+		struct pgraph_params *params);
 void pgraph_delete(struct pgraph *graph);
 struct pgraph *pgraph_open(PMEMobjpool *pop);
 

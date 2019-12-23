@@ -37,6 +37,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include "unittest.h"
 #include "vgraph.h"
 
 /*
@@ -45,10 +46,13 @@
 unsigned
 rand_range(unsigned min, unsigned max)
 {
-	unsigned ret;
-	do {
-		ret = ((unsigned)rand() % (max - min)) + min;
-	} while (ret == 0);
+	if (min == max)
+		return min;
+
+	if (min > max)
+		UT_FATAL("!rand_range");
+
+	unsigned ret = ((unsigned)rand() % (max - min)) + min;
 
 	return ret;
 }
@@ -63,7 +67,8 @@ vnode_new(struct vnode *node, unsigned v, struct vgraph_params *params)
 	node->node_id = v;
 	node->edges_num = edges_num;
 	node->edges = (unsigned *)malloc(sizeof(int) * edges_num);
-	node->pattern_size = rand_range(params->min_pattern_size, params->max_pattern_size);
+	node->pattern_size = rand_range(params->min_pattern_size,
+			params->max_pattern_size);
 }
 
 /*

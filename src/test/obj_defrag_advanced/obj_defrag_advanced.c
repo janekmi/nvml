@@ -34,10 +34,14 @@
  * obj_defrag_advanced.c -- test for defragmentation feature
  */
 
-#include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <stddef.h>
+#include <unistd.h>
+#include <stdlib.h>
+
+#include <getopt.h>
 
 #include "vgraph.h"
 #include "pgraph.h"
@@ -66,17 +70,19 @@ graph_defrag(PMEMobjpool *pop, struct pgraph *pgraph)
 	/* count number of oids */
 	unsigned oidcnt = pgraph->nodes_num;
 	for (unsigned i = 0; i < pgraph->nodes_num; ++i) {
-		struct pnode *pnode = pmemobj_direct(pgraph->nodes[i]);
+		struct pnode *pnode = (struct pnode *)pmemobj_direct
+				(pgraph->nodes[i]);
 		oidcnt += pnode->edges_num;
 	}
 
 	/* create array of oid pointers */
-	PMEMoid **oidv = malloc(sizeof(PMEMoid *) * oidcnt);
+	PMEMoid **oidv = (PMEMoid **)malloc(sizeof(PMEMoid *) * oidcnt);
 	unsigned oidi = 0;
 	for (unsigned i = 0; i < pgraph->nodes_num; ++i) {
 		oidv[oidi++] = &pgraph->nodes[i];
 
-		struct pnode *pnode = pmemobj_direct(pgraph->nodes[i]);
+		struct pnode *pnode = (struct pnode *)pmemobj_direct
+				(pgraph->nodes[i]);
 		for (unsigned j = 0; j < pnode->edges_num; ++j) {
 			oidv[oidi++] = &pnode->edges[j];
 		}
@@ -105,7 +111,7 @@ graph_defrag(PMEMobjpool *pop, struct pgraph *pgraph)
 #define TEST_NAME "obj_defrag_advanced"
 
 /*
- * print_usage -- XXX
+ * print_usage -- print usage of program
  */
 static void
 print_usage()
@@ -136,7 +142,7 @@ create_op(struct task *task)
 	srand(task->seed);
 
 	struct vgraph *vgraph = vgraph_new(&task->vgraph_params);
-	(void)pgraph_new(pop, vgraph, &task->pgraph_params);
+	(void) pgraph_new(pop, vgraph, &task->pgraph_params);
 	vgraph_delete(vgraph);
 
 	pmemobj_close(pop);
@@ -200,14 +206,16 @@ static const struct option long_options[] = {
 	{"dump",		required_argument,	NULL,	'd'},
 	{"defrag",		no_argument,		NULL,	'f'},
 	{"path",		required_argument,	NULL,	'p'},
+	{"dumppath",		required_argument,	NULL,	'q'},
 	{"seed",		required_argument,	NULL,	's'},
-	{"max-nodes",	required_argument,	NULL,	'n'},
-	{"max-edges",	required_argument,	NULL,	'e'},
+	{"max-nodes",		required_argument,	NULL,	'n'},
+	{"max-edges",		required_argument,	NULL,	'e'},
+	{"max-graph-copies",	required_argument,	NULL,	'o'},
 	{"help",		no_argument,		NULL,	'h'},
 	{NULL,			0,			NULL,	 0 },
 };
 
-#define OPT_STR "cdfp:q:s:n:e:h"
+#define OPT_STR "cdfp::s:n:e:o:h"
 
 /*
  * parse_args -- parse command line arguments
@@ -236,12 +244,19 @@ parse_args(int argc, char *argv[], struct task *task)
 				task->seed = strtoul(optarg, NULL, 10);
 			break;
 		case 'n':
-				task->vgraph_params.max_nodes =
-						strtoul(optarg, NULL, 10);
+			if (!(task->vgraph_params.max_nodes =
+				strtoul(optarg, NULL, 10)))
+				exit(EXIT_FAILURE);
 			break;
 		case 'e':
-				task->vgraph_params.max_edges =
-						strtoul(optarg, NULL, 10);
+			if (!(task->vgraph_params.max_edges =
+				strtoul(optarg, NULL, 10)))
+				exit(EXIT_FAILURE);
+			break;
+		case 'o':
+			if (!(task->pgraph_params.max_graph_copies =
+				strtoul(optarg, NULL, 10)))
+				exit(EXIT_FAILURE);
 			break;
 		case 'h':
 			print_usage();
@@ -299,17 +314,9 @@ main(int argc, char *argv[])
 		break;
 	case OP_MAX:
 	default:
-		print_usage(argv[0]);
+		print_usage();
 		exit(EXIT_FAILURE);
 	}
-
-	/*
-	 * mix
-	 * add edge
-	 * dump
-	 * defrag
-	 * dump
-	 */
 
 	DONE(NULL);
 }

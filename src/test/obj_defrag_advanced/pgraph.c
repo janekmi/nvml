@@ -94,7 +94,7 @@ order_shuffle(unsigned *order, unsigned num)
 }
 
 /*
- * order_new -- XXX
+ * order_new -- the sequence of nodes in the graph
  */
 static unsigned *
 order_new(struct vgraph *vgraph)
@@ -150,7 +150,7 @@ pgraph_copy_delete(PMEMoid *nodes, unsigned num)
 }
 
 /*
- * pgraph_size -- XXX
+ * pgraph_size -- return the graph size
  */
 static size_t
 pgraph_size(unsigned nodes_num)
@@ -163,7 +163,8 @@ pgraph_size(unsigned nodes_num)
  * that the fragmentation is as large as possible
  */
 struct pgraph *
-pgraph_new(PMEMobjpool *pop, struct vgraph *vgraph, struct pgraph_params *params)
+pgraph_new(PMEMobjpool *pop, struct vgraph *vgraph,
+		struct pgraph_params *params)
 {
 	size_t root_size = pgraph_size(vgraph->nodes_num);
 	PMEMoid root_oid = pmemobj_root(pop, root_size);
@@ -188,7 +189,7 @@ pgraph_new(PMEMobjpool *pop, struct vgraph *vgraph, struct pgraph_params *params
 
 	/* peek exactly the one copy of each node */
 	for (unsigned i = 0; i < pgraph->nodes_num; ++i) {
-		unsigned copy_id = rand_range(1, copies_num);
+		unsigned copy_id = rand_range(0, copies_num);
 		pgraph->nodes[i] = copies[copy_id][i];
 		copies[copy_id][i] = OID_NULL;
 	}
@@ -208,7 +209,7 @@ pgraph_new(PMEMobjpool *pop, struct vgraph *vgraph, struct pgraph_params *params
 }
 
 /*
- * pgraph_open -- XXX
+ * pgraph_open -- open graph
  */
 struct pgraph *
 pgraph_open(PMEMobjpool *pop)
@@ -265,27 +266,28 @@ pgraph_print(struct pgraph *pgraph, const char *dump)
 	FCLOSE(out);
 }
 
-#define ALLOCATION_FACTOR 2
+// #define ALLOCATION_FACTOR 2
 
 /*
- * pgraph_size_estimate -- XXX
+ * pgraph_size_estimate -- not used for now
+ *
+ * size_t
+ * pgraph_size_estimate(struct vgraph *vgraph, struct pgraph_params *params)
+ * {
+ *	size_t total = 0;
+ *
+ *	 all nodes from all graph copies
+ *	for (unsigned i = 0; i < vgraph->nodes_num; ++i) {
+ *		struct vnode *vnode = &vgraph->node[i];
+ *		total += pnode_size(vnode->edges_num, vnode->pattern_size);
+ *	}
+ *
+ *	total *= params->max_graph_copies;
+ *
+ *	total += pgraph_size(vgraph->nodes_num); / root object size /
+ *
+ *	total *= ALLOCATION_FACTOR;
+ *
+ *	return total;
+ * }
  */
-size_t
-pgraph_size_estimate(struct vgraph *vgraph, struct pgraph_params *params)
-{
-	size_t total = 0;
-
-	/* all nodes from all graph copies */
-	for (unsigned i = 0; i < vgraph->nodes_num; ++i) {
-		struct vnode *vnode = &vgraph->node[i];
-		total += pnode_size(vnode->edges_num, vnode->pattern_size);
-	}
-
-	total *= params->max_graph_copies;
-
-	total += pgraph_size(vgraph->nodes_num); /* root object size */
-
-	total *= ALLOCATION_FACTOR;
-
-	return total;
-}

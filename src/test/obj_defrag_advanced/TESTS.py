@@ -42,6 +42,7 @@ class OBJ_DEFRAG_ADVANCED(t.BaseTest):
     test_type = t.Medium
     max_nodes = 50
     max_edges = 10
+    max_graph_copies = 10
 
     def match_dumps(self, path1, path2):
         with open(path1, 'r') as file1, open(path2, 'r') as file2:
@@ -54,13 +55,20 @@ class OBJ_DEFRAG_ADVANCED(t.BaseTest):
         filepath = ctx.create_holey_file(500 * t.MiB, 'testfile')
         dump1 = os.path.join(ctx.testdir, 'dump1')
         dump2 = os.path.join(ctx.testdir, 'dump2')
-        ctx.exec('obj_defrag_advanced', '--create', '--path=' + filepath, '--max-nodes=' + str(self.max_nodes), '--max-edges=' + str(self.max_edges))
+        ctx.exec('obj_defrag_advanced', '--create', '--path=' + filepath, '--max-nodes=' + str(self.max_nodes), '--max-edges=' + str(self.max_edges), '--max-graph-copies=' + str(self.max_graph_copies))
         ctx.exec('obj_defrag_advanced', '--dump=' + dump1, '--path=' + filepath)
         ctx.exec('obj_defrag_advanced', '--defrag', '--path=' + filepath)
         ctx.exec('obj_defrag_advanced', '--dump=' + dump2, '--path=' + filepath)
         self.match_dumps(dump1, dump2)
 
-
+# pass
 class TEST0(OBJ_DEFRAG_ADVANCED):
     max_nodes = 5
     max_edges = 5
+    max_graph_copies = 1
+
+# fail
+class TEST1(OBJ_DEFRAG_ADVANCED):
+    max_nodes = 23
+    max_edges = 1
+    max_graph_copies = 1
