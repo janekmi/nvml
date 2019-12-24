@@ -34,6 +34,7 @@
  * zone.c -- entry points for librpma zone
  */
 
+#include <stdint.h>
 #include <rdma/fabric.h>
 #include <rdma/fi_eq.h>
 #include <rdma/fi_endpoint.h>
@@ -223,17 +224,55 @@ zone_fini(struct rpma_zone *zone)
 	info_delete(&zone->info);
 }
 
-static int
-connection_compare(const void *lhs, const void *rhs)
+struct ep_conn_pair
 {
-	const struct rpma_connection *l = lhs;
-	const struct rpma_connection *r = rhs;
+	fid_t ep_fid;
+	struct rpma_connection *conn;
+};
 
-	int64_t diff = (int64_t)l->ep->fid - (int64_t)r->ep->fid;
+static int
+ep_conn_pair_compare(const void *lhs, const void *rhs)
+{
+	const struct ep_conn_pair *l = lhs;
+	const struct ep_conn_pair *r = rhs;
+
+	int64_t diff = (int64_t)l->ep_fid - (int64_t)r->ep_fid;
 	if (diff != 0)
 		return diff > 0 ? 1 : -1;
 
 	return 0;
+}
+
+static void
+conn_store(struct ravl *store, struct rpma_connection *conn)
+{
+	struct ep_conn_pair *pair = Malloc(sizeof(*pair));
+	pair->ep_fid = &conn->ep->fid;
+	pair->conn = conn;
+
+	ravl_insert(store, pair);
+}
+
+static struct rpma_connection *
+conn_restore(struct ravl *store, fid_t ep_fid)
+{
+	struct ep_conn_pair to_find;
+	to_find.ep_fid = ep_fid;
+	to_find.conn = NULL;
+
+	struct ravl_node *node = ravl_find(store, &to_find, RAVL_PREDICATE_EQUAL);
+	if (!node)
+		return NULL;
+
+	struct ep_conn_pair *found = ravl_data(node);
+	if (!found)
+		return NULL;
+
+	struct rpma_connection *ret = found->conn;
+	Free(found);
+	ravl_remove(store, node);
+
+	return ret;
 }
 
 int
@@ -252,7 +291,7 @@ rpma_zone_new(struct rpma_config *cfg, struct rpma_zone **zone)
 	ptr->conn_req_info = NULL;
 	ptr->uarg = NULL;
 	ptr->active_connections = 0;
-	ptr->connections = ravl_new(connection_compare);
+	ptr->connections = ravl_new(ep_conn_pair_compare);
 
 	ptr->wait_breaking = 0;
 
@@ -387,21 +426,6 @@ zone_on_timeout(struct rpma_zone *zone, void *uarg)
 	return func(zone, uarg);
 }
 
-static struct rpma_connection *
-connection_find(struct rpma_zone *zone, fid_t fid)
-{
-	struct rpma_connection to_find;
-	to_find.ep = Malloc(sizeof(struct fid_ep));
-	to_find.ep->fid = fid;
-
-	struct ravl_node *node = ravl_find(zone->connections, &to_find, RAVL_PREDICATE_EQUAL);
-	struct rpma_connection *conn;
-	if (node)
-		conn = ravl_data(node);
-
-	return conn;
-}
-
 int
 rpma_zone_wait_connections(struct rpma_zone *zone, void *uarg)
 {
@@ -413,6 +437,7 @@ rpma_zone_wait_connections(struct rpma_zone *zone, void *uarg)
 	int ret;
 	struct fi_eq_cm_entry entry;
 	uint32_t event;
+	struct rpma_connection *conn;
 
 	while (zone_is_waiting(zone)) {
 		ret = eq_read(zone->eq, &entry, &event, zone->timeout);
@@ -427,15 +452,19 @@ rpma_zone_wait_connections(struct rpma_zone *zone, void *uarg)
 
 		switch (event) {
 		case FI_CONNREQ:
-			zone->conn_req_info = entry->info;
+			zone->conn_req_info = entry.info;
 			ret = zone->on_connection_event_func(zone, RPMA_CONNECTION_EVENT_INCOMING, NULL, uarg);
-			rpma_utils_freeinfo(zone->conn_req_info);
+			rpma_utils_freeinfo(&zone->conn_req_info);
 			if (ret)
 				return ret;
 			++zone->active_connections;
 			break;
 		case FI_SHUTDOWN:
-			connection_find(zone, entry.fid);
+			conn = conn_restore(zone->connections, entry.fid);
+			ret = zone->on_connection_event_func(zone, RPMA_CONNECTION_EVENT_DISCONNECT, conn, uarg);
+			if (ret)
+				return ret;
+			--zone->active_connections;
 			break;
 		default:
 			ERR("unexpected event received (%u)", event);
@@ -452,7 +481,7 @@ rpma_zone_wait_connected(struct rpma_zone *zone, struct rpma_connection *conn)
 {
 	ASSERTne(zone->pep, NULL);
 
-	int ret;
+	int ret = 0;
 	struct fi_eq_cm_entry entry;
 	uint32_t event;
 
@@ -469,11 +498,11 @@ rpma_zone_wait_connected(struct rpma_zone *zone, struct rpma_connection *conn)
 
 		switch (event) {
 		case FI_CONNECTED:
-			if ((uint64_t)entry.fid != (uint64_t)conn->ep->fid) {
+			if (entry.fid != &conn->ep->fid) {
 				ERR("unexpected fid received (%p)", entry.fid);
 				ret = RPMA_E_EQ_EVENT_DATA;
 			}
-			ravl_insert(zone->connections, conn);
+			conn_store(zone->connections, conn);
 			break;
 		default:
 			ERR("unexpected event received (%u)", event);
