@@ -48,6 +48,7 @@ SOURCE =\
 	config.c\
 	librpma.c\
 	memory.c\
+	rma.c\
 	rpma.c\
 	rpma_utils.c\
 	zone.c

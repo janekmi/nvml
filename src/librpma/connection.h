@@ -36,7 +36,18 @@
 #ifndef RPMA_CONNECTION_H
 #define RPMA_CONNECTION_H
 
+#include <rdma/fi_rma.h>
+#include <sys/uio.h>
+
 #include <librpma.h>
+
+struct rpma_rma {
+	struct fi_msg_rma msg;	/* message structure */
+	struct iovec msg_iov;	/* IO vector buffer */
+	struct fi_rma_iov rma_iov; /* RMA IO vector buffer */
+	void *desc;		/* local memory descriptor */
+	uint64_t flags;		/* RMA operation flags */
+};
 
 struct rpma_connection {
 	struct rpma_zone *zone;
@@ -47,7 +58,14 @@ struct rpma_connection {
 	rpma_on_transmission_notify_func on_transmission_notify_func;
 	rpma_on_connection_recv_func on_connection_recv_func;
 
+	struct rpma_rma rma;
+	struct rpma_memory_local *raw_dst;
+	struct rpma_memory_remote *raw_src;
+
 	void *custom_data;
 };
+
+int rpma_connection_rma_init(struct rpma_connection *conn);
+int rpma_connection_rma_fini(struct rpma_connection *conn);
 
 #endif /* connection.h */

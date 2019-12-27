@@ -95,6 +95,7 @@ rpma_memory_local_new(struct rpma_zone *zone, void *ptr, size_t size,
 	mem->ptr = ptr;
 	mem->size = size;
 	mem->mr = mr;
+	mem->desc = fi_mr_desc(mr);
 
 	*mem_ptr = mem;
 

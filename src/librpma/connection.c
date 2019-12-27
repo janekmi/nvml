@@ -59,9 +59,17 @@ rpma_connection_new(struct rpma_zone *zone, struct rpma_connection **conn)
 
 	ptr->custom_data = NULL;
 
+	int ret = rpma_connection_rma_init(ptr);
+	if (ret)
+		goto err_rma_init;
+
 	*conn = ptr;
 
 	return 0;
+
+err_rma_init:
+	Free(ptr);
+	return ret;
 }
 
 static int
@@ -220,10 +228,17 @@ rpma_connection_delete(struct rpma_connection **conn)
 
 	ep_fini(ptr);
 
+	int ret = rpma_connection_rma_fini(ptr);
+	if (ret)
+		goto err_rma_fini;
+
 	Free(ptr);
 	*conn = NULL;
 
 	return 0;
+
+err_rma_fini:
+	return ret;
 }
 
 int

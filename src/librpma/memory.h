@@ -42,6 +42,7 @@ struct rpma_memory_local
 	size_t size;
 
 	struct fid_mr *mr;
+	void *desc;		/* local memory descriptor */
 };
 
 struct rpma_memory_remote

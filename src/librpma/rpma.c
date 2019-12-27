@@ -125,33 +125,3 @@ rpma_connection_send(struct rpma_connection *conn, void *ptr)
 {
 	return RPMA_E_NOSUPP;
 }
-
-int
-rpma_connection_read(struct rpma_connection *conn,
-		struct rpma_memory_local *dst, size_t dst_off,
-		struct rpma_memory_remote *src, size_t src_off, size_t length)
-{
-	return RPMA_E_NOSUPP;
-}
-
-int
-rpma_connection_write(struct rpma_connection *conn,
-		struct rpma_memory_remote *dst, size_t dst_off,
-		struct rpma_memory_local *src, size_t src_off, size_t length)
-{
-	return RPMA_E_NOSUPP;
-}
-
-int
-rpma_connection_atomic_write(struct rpma_connection *conn,
-		struct rpma_memory_remote *dst, size_t dst_off,
-		struct rpma_memory_local *src, size_t src_off, size_t length)
-{
-	return RPMA_E_NOSUPP;
-}
-
-int
-rpma_connection_commit(struct rpma_connection *conn)
-{
-	return RPMA_E_NOSUPP;
-}
