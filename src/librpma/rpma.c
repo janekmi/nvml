@@ -127,57 +127,6 @@ rpma_connection_send(struct rpma_connection *conn, void *ptr)
 }
 
 int
-rpma_memory_local_new(struct rpma_zone *zone, void *ptr, size_t size,
-		int usage, struct rpma_memory_local **mem)
-{
-	return RPMA_E_NOSUPP;
-}
-
-int
-rpma_memory_local_get_ptr(struct rpma_memory_local *mem, void **ptr)
-{
-	return RPMA_E_NOSUPP;
-}
-
-int
-rpma_memory_local_get_size(struct rpma_memory_local *mem, size_t *size)
-{
-	return RPMA_E_NOSUPP;
-}
-
-int
-rpma_memory_local_get_id(struct rpma_memory_local *mem,
-		struct rpma_memory_id *id)
-{
-	return RPMA_E_NOSUPP;
-}
-
-int
-rpma_memory_local_delete(struct rpma_memory_local **mem)
-{
-	return RPMA_E_NOSUPP;
-}
-
-int
-rpma_memory_remote_new(struct rpma_zone *zone, struct rpma_memory_id *id,
-		struct rpma_memory_remote **rmem)
-{
-	return RPMA_E_NOSUPP;
-}
-
-int
-rpma_memory_remote_get_size(struct rpma_memory_remote *rmem, size_t *size)
-{
-	return RPMA_E_NOSUPP;
-}
-
-int
-rpma_memory_remote_delete(struct rpma_memory_remote **rmem)
-{
-	return RPMA_E_NOSUPP;
-}
-
-int
 rpma_connection_read(struct rpma_connection *conn,
 		struct rpma_memory_local *dst, size_t dst_off,
 		struct rpma_memory_remote *src, size_t src_off, size_t length)

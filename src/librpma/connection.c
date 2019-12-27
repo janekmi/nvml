@@ -45,17 +45,6 @@
 
 #define CQ_SIZE 10 /* XXX */
 
-static void
-connection_init(struct rpma_connection *conn, struct rpma_zone *zone)
-{
-	conn->zone = zone;
-
-	conn->on_connection_recv_func = NULL;
-	conn->on_transmission_notify_func = NULL;
-
-	conn->custom_data = NULL;
-}
-
 int
 rpma_connection_new(struct rpma_zone *zone, struct rpma_connection **conn)
 {
@@ -63,7 +52,12 @@ rpma_connection_new(struct rpma_zone *zone, struct rpma_connection **conn)
 	if (!ptr)
 		return RPMA_E_ERRNO;
 
-	connection_init(ptr, zone);
+	ptr->zone = zone;
+
+	ptr->on_connection_recv_func = NULL;
+	ptr->on_transmission_notify_func = NULL;
+
+	ptr->custom_data = NULL;
 
 	*conn = ptr;
 
@@ -138,8 +132,13 @@ err_bind_eq:
 static int
 ep_fini(struct rpma_connection *conn)
 {
-	/* XXX */
-	return RPMA_E_NOSUPP;
+	if (conn->ep)
+		rpma_utils_res_close(&conn->ep->fid, "ep");
+
+	if (conn->cq)
+		rpma_utils_res_close(&conn->cq->fid, "cq");
+
+	return 0;
 }
 
 int
@@ -173,7 +172,10 @@ err_accept:
 int
 rpma_connection_reject(struct rpma_zone *zone)
 {
-	return RPMA_E_NOSUPP;
+	/* XXX use param buffer? */
+	fi_reject(zone->pep, zone->conn_req_info->handle, NULL, 0);
+
+	return 0;
 }
 
 int
@@ -205,13 +207,23 @@ err_connect:
 int
 rpma_connection_disconnect(struct rpma_connection *conn)
 {
-	return RPMA_E_NOSUPP;
+	/* XXX any prior messaging? */
+	fi_shutdown(conn->ep, 0);
+
+	return 0;
 }
 
 int
 rpma_connection_delete(struct rpma_connection **conn)
 {
-	return RPMA_E_NOSUPP;
+	struct rpma_connection *ptr = *conn;
+
+	ep_fini(ptr);
+
+	Free(ptr);
+	*conn = NULL;
+
+	return 0;
 }
 
 int
