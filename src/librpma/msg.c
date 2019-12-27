@@ -1,0 +1,216 @@
+/*
+ * Copyright 2019, Intel Corporation
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in
+ *       the documentation and/or other materials provided with the
+ *       distribution.
+ *
+ *     * Neither the name of the copyright holder nor the names of its
+ *       contributors may be used to endorse or promote products derived
+ *       from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+/*
+ * msg.c -- entry points for librpma MSG
+ */
+
+#include <errno.h>
+#include <rdma/fi_endpoint.h>
+
+#include "alloc.h"
+#include "connection.h"
+#include "memory.h"
+#include "util.h"
+#include "rpma_utils.h"
+
+static int
+msg_queue_init(struct rpma_connection *conn, size_t queue_length,
+		uint64_t access, struct rpma_memory_local **buff)
+{
+	size_t buff_size = conn->zone->msg_size * queue_length;
+	buff_size = ALIGN_UP(buff_size, Pagesize);
+
+	void *ptr;
+	errno = posix_memalign((void **)&ptr, Pagesize, buff_size);
+	if (errno)
+		return RPMA_E_ERRNO;
+
+	int ret = rpma_memory_local_new_internal(conn->zone, ptr, buff_size,
+			access, buff);
+	if (ret)
+		goto err_mem_local_new;
+
+	return 0;
+
+err_mem_local_new:
+	Free(ptr);
+	return ret;
+}
+
+/* XXX make it common with raw_buffer_init/_fini ? */
+static int
+msg_queue_fini(struct rpma_connection *conn, struct rpma_memory_local **buff)
+{
+	void *ptr;
+	int ret = rpma_memory_local_get_ptr(*buff, &ptr);
+	if (ret)
+		return ret;
+
+	ret = rpma_memory_local_delete(buff);
+	if (ret)
+		return ret;
+
+	Free(ptr);
+
+	return 0;
+}
+
+int
+rpma_connection_msg_init(struct rpma_connection *conn)
+{
+	int ret;
+
+	conn->send_buff_id = 0;
+
+	ret = msg_queue_init(conn, conn->zone->send_queue_length, FI_SEND,
+			&conn->send_buff);
+	if (ret)
+		return ret;
+
+	ret = msg_queue_init(conn, conn->zone->recv_queue_length, FI_RECV,
+			&conn->recv_buff);
+	if (ret)
+		goto err_recv_queue_init;
+
+	/* initialize RMA msg */
+	struct fi_msg *msg = &conn->msg.msg;
+	conn->msg.flags = FI_COMPLETION;
+	msg->desc = conn->send_buff->desc;
+	msg->addr = 0;
+	msg->context = NULL; /* XXX */
+	msg->msg_iov = &conn->msg.iov;
+	msg->iov_count = 1;
+	conn->msg.iov.iov_len = conn->zone->msg_size;
+
+	return 0;
+
+err_recv_queue_init:
+	(void)msg_queue_fini(conn, &conn->send_buff);
+	return ret;
+}
+
+int
+rpma_connection_msg_fini(struct rpma_connection *conn)
+{
+	int ret;
+	ret = msg_queue_fini(conn, &conn->recv_buff);
+	if (ret)
+		return ret;
+
+	ret = msg_queue_fini(conn, &conn->send_buff);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+int
+rpma_msg_get_ptr(struct rpma_connection *conn, void **ptr)
+{
+	void *buff;
+	int ret = rpma_memory_local_get_ptr(conn->send_buff, &buff);
+	if (ret)
+		return ret;
+
+	uint64_t buff_id = conn->send_buff_id;
+	conn->send_buff_id = (buff_id + 1) % conn->zone->send_queue_length;
+
+	buff = (void *)((uintptr_t)buff + buff_id * conn->zone->msg_size);
+
+	*ptr = buff;
+
+	return 0;
+}
+
+#define CQ_DEFAULT_TIMEOUT 1000
+
+static int
+cq_wait(struct rpma_connection *conn, uint64_t flags, void *op_context)
+{
+	struct fi_cq_msg_entry cq_entry;
+	int ret;
+
+	while (1) {
+		ret = (int)fi_cq_sread(conn->cq, &cq_entry, 1, NULL, CQ_DEFAULT_TIMEOUT);
+		if (ret == FI_EAGAIN)
+			continue;
+		if (ret)
+			goto err_cq_read;
+
+		if (!(cq_entry.flags & flags)) {
+			/* XXX mismatch enqueue for processing */
+			ASSERT(0);
+		}
+
+		if (cq_entry.op_context != op_context) {
+			/* XXX mismatch enqueue for processing */
+			ASSERT(0);
+		}
+
+		break;
+	}
+
+	return 0;
+
+err_cq_read:
+	ERR_FI(ret, "fi_cq_sread");
+	return ret;
+}
+
+int
+rpma_connection_send(struct rpma_connection *conn, void *ptr)
+{
+	conn->msg.iov.iov_base = ptr;
+	conn->msg.msg.context = ptr;
+
+	int ret = (int)fi_sendmsg(conn->ep, &conn->msg.msg, conn->msg.flags);
+	if (ret) {
+		ERR_FI(ret, "fi_writemsg");
+		return ret;
+	}
+
+	/* CQ wait */
+	ret = cq_wait(conn, FI_SEND, ptr);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+int
+rpma_connection_recv(struct rpma_connection *conn, void *ptr)
+{
+	/* XXX */
+
+	return 0;
+}

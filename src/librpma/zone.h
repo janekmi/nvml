@@ -55,6 +55,11 @@ struct rpma_zone {
 	rpma_on_connection_event_func on_connection_event_func;
 	rpma_on_timeout_func on_timeout_func;
 	int timeout;
+
+	/* XXX should be rpma_connection specific? */
+	size_t msg_size;
+	size_t send_queue_length;
+	size_t recv_queue_length;
 };
 
 int rpma_zone_wait_connected(struct rpma_zone *zone, struct rpma_connection *conn);

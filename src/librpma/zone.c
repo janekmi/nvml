@@ -299,6 +299,10 @@ rpma_zone_new(struct rpma_config *cfg, struct rpma_zone **zone)
 	ptr->on_timeout_func = NULL;
 	ptr->timeout = DEFAULT_TIMEOUT;
 
+	ptr->msg_size = cfg->msg_size;
+	ptr->send_queue_length = cfg->send_queue_length;
+	ptr->recv_queue_length = cfg->recv_queue_length;
+
 	int ret = zone_init(cfg, ptr);
 
 	if (ret)

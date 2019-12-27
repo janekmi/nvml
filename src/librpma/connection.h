@@ -49,6 +49,13 @@ struct rpma_rma {
 	uint64_t flags;		/* RMA operation flags */
 };
 
+struct rpma_msg {
+	struct fi_msg msg;	/* message structure */
+	struct iovec iov;	/* IO vector buffer */
+	void *desc;		/* local memory descriptor */
+	uint64_t flags;		/* MSG operation flags */
+};
+
 struct rpma_connection {
 	struct rpma_zone *zone;
 
@@ -62,10 +69,20 @@ struct rpma_connection {
 	struct rpma_memory_local *raw_dst;
 	struct rpma_memory_remote *raw_src;
 
+	struct rpma_msg msg;
+	uint64_t send_buff_id;
+	struct rpma_memory_local *send_buff;
+	struct rpma_memory_local *recv_buff;
+
 	void *custom_data;
 };
 
 int rpma_connection_rma_init(struct rpma_connection *conn);
 int rpma_connection_rma_fini(struct rpma_connection *conn);
+
+int rpma_connection_msg_init(struct rpma_connection *conn);
+int rpma_connection_msg_fini(struct rpma_connection *conn);
+
+int rpma_connection_recv(struct rpma_connection *conn, void *ptr);
 
 #endif /* connection.h */

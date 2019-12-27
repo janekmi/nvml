@@ -113,15 +113,3 @@ rpma_connection_group_delete(struct rpma_connection_group **group)
 {
 	return RPMA_E_NOSUPP;
 }
-
-int
-rpma_msg_get_ptr(struct rpma_connection *conn, void **ptr)
-{
-	return RPMA_E_NOSUPP;
-}
-
-int
-rpma_connection_send(struct rpma_connection *conn, void *ptr)
-{
-	return RPMA_E_NOSUPP;
-}

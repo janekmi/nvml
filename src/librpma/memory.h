@@ -36,6 +36,8 @@
 #ifndef RPMA_MEMORY_H
 #define RPMA_MEMORY_H
 
+#include "zone.h"
+
 struct rpma_memory_local
 {
 	void *ptr;
@@ -55,5 +57,8 @@ struct rpma_memory_remote
 };
 
 typedef struct rpma_memory_remote rpma_memory_id_internal;
+
+int rpma_memory_local_new_internal(struct rpma_zone *zone, void *ptr,
+		size_t size, uint64_t access, struct rpma_memory_local **mem_ptr);
 
 #endif /* memory.h */

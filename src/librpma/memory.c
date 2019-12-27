@@ -75,10 +75,9 @@ usage_to_access(int usage)
 }
 
 int
-rpma_memory_local_new(struct rpma_zone *zone, void *ptr, size_t size,
-		int usage, struct rpma_memory_local **mem_ptr)
+rpma_memory_local_new_internal(struct rpma_zone *zone, void *ptr, size_t size,
+		uint64_t access, struct rpma_memory_local **mem_ptr)
 {
-	uint64_t access = usage_to_access(usage);
 	struct fid_mr *mr;
 	void *context = NULL; /* XXX? */
 
@@ -100,6 +99,14 @@ rpma_memory_local_new(struct rpma_zone *zone, void *ptr, size_t size,
 	*mem_ptr = mem;
 
 	return 0;
+}
+
+int
+rpma_memory_local_new(struct rpma_zone *zone, void *ptr, size_t size,
+		int usage, struct rpma_memory_local **mem_ptr)
+{
+	uint64_t access = usage_to_access(usage);
+	return rpma_memory_local_new_internal(zone, ptr, size, access, mem_ptr);
 }
 
 int

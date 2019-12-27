@@ -63,10 +63,16 @@ rpma_connection_new(struct rpma_zone *zone, struct rpma_connection **conn)
 	if (ret)
 		goto err_rma_init;
 
+	ret = rpma_connection_msg_init(ptr);
+	if (ret)
+		goto err_msg_init;
+
 	*conn = ptr;
 
 	return 0;
 
+err_msg_init:
+	(void)rpma_connection_rma_fini(ptr);
 err_rma_init:
 	Free(ptr);
 	return ret;

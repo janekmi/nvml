@@ -145,14 +145,14 @@ rpma_connection_write(struct rpma_connection *conn,
 
 	/* XXX WQ flush */
 
-	struct fi_msg_rma *rma = &conn->rma.msg;
-	rma->desc = src->desc;
-	conn->rma.rma_iov.addr = dst->raddr + dst_off;
-	conn->rma.rma_iov.len = length;
-	conn->rma.msg_iov.iov_base = (void *)((uintptr_t)src->ptr + src_off);
-	conn->rma.msg_iov.iov_len = length;
+	struct rpma_rma *rma = &conn->rma;
+	struct fi_msg_rma *msg = &rma->msg;
+	rma->rma_iov.addr = dst->raddr + dst_off;
+	rma->rma_iov.len = length;
+	rma->msg_iov.iov_base = (void *)((uintptr_t)src->ptr + src_off);
+	rma->msg_iov.iov_len = length;
 
-	ssize_t ret = fi_writemsg(conn->ep, rma, conn->rma.flags);
+	int ret = (int)fi_writemsg(conn->ep, msg, conn->rma.flags);
 	if (ret) {
 		ERR_FI(ret, "fi_writemsg");
 		return (int)ret;
