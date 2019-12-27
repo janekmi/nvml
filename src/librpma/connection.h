@@ -69,7 +69,8 @@ struct rpma_connection {
 	struct rpma_memory_local *raw_dst;
 	struct rpma_memory_remote *raw_src;
 
-	struct rpma_msg msg;
+	struct rpma_msg send;
+	struct rpma_msg recv;
 	uint64_t send_buff_id;
 	struct rpma_memory_local *send_buff;
 	struct rpma_memory_local *recv_buff;
@@ -84,5 +85,6 @@ int rpma_connection_msg_init(struct rpma_connection *conn);
 int rpma_connection_msg_fini(struct rpma_connection *conn);
 
 int rpma_connection_recv(struct rpma_connection *conn, void *ptr);
+int rpma_connection_recv_post(struct rpma_connection *conn);
 
 #endif /* connection.h */

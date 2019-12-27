@@ -162,7 +162,7 @@ rpma_connection_accept(struct rpma_connection *conn)
 	if (ret)
 		return ret;
 
-	/* XXX posting RECV buffers? */
+	rpma_connection_recv_post(conn);
 
 	/* XXX use param buffer? */
 	ret = fi_accept(conn->ep, NULL, 0);

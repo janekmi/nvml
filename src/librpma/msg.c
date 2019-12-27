@@ -85,6 +85,16 @@ msg_queue_fini(struct rpma_connection *conn, struct rpma_memory_local **buff)
 	return 0;
 }
 
+static void
+msg_init(struct fi_msg *msg, void **desc, const struct iovec *msg_iov)
+{
+	msg->desc = desc;
+	msg->addr = 0;
+	msg->context = NULL; /* XXX */
+	msg->msg_iov = msg_iov;
+	msg->iov_count = 1;
+}
+
 int
 rpma_connection_msg_init(struct rpma_connection *conn)
 {
@@ -102,15 +112,9 @@ rpma_connection_msg_init(struct rpma_connection *conn)
 	if (ret)
 		goto err_recv_queue_init;
 
-	/* initialize RMA msg */
-	struct fi_msg *msg = &conn->msg.msg;
-	conn->msg.flags = FI_COMPLETION;
-	msg->desc = conn->send_buff->desc;
-	msg->addr = 0;
-	msg->context = NULL; /* XXX */
-	msg->msg_iov = &conn->msg.iov;
-	msg->iov_count = 1;
-	conn->msg.iov.iov_len = conn->zone->msg_size;
+	/* initialize msgs */
+	msg_init(&conn->send.msg, &conn->send_buff->desc, &conn->send.iov);
+	msg_init(&conn->recv.msg, &conn->recv_buff->desc, &conn->recv.iov);
 
 	return 0;
 
@@ -190,10 +194,13 @@ err_cq_read:
 int
 rpma_connection_send(struct rpma_connection *conn, void *ptr)
 {
-	conn->msg.iov.iov_base = ptr;
-	conn->msg.msg.context = ptr;
+	struct rpma_msg *send = &conn->send;
 
-	int ret = (int)fi_sendmsg(conn->ep, &conn->msg.msg, conn->msg.flags);
+	send->iov.iov_base = ptr;
+	send->iov.iov_len = conn->zone->msg_size;
+	send->msg.context = ptr;
+
+	int ret = (int)fi_sendmsg(conn->ep, &send->msg, send->flags);
 	if (ret) {
 		ERR_FI(ret, "fi_writemsg");
 		return ret;
@@ -210,7 +217,23 @@ rpma_connection_send(struct rpma_connection *conn, void *ptr)
 int
 rpma_connection_recv(struct rpma_connection *conn, void *ptr)
 {
-	/* XXX */
+	struct rpma_msg *recv = &conn->recv;
 
+	recv->iov.iov_base = ptr;
+	recv->iov.iov_len = conn->zone->msg_size;
+	recv->msg.context = ptr;
+
+	int ret = (int)fi_recvmsg(conn->ep, &recv->msg, recv->flags);
+	if (ret) {
+		ERR_FI(ret, "fi_recvmsg");
+		return ret;
+	}
+
+	return 0;
+}
+
+int rpma_connection_recv_post(struct rpma_connection *conn)
+{
+	/* XXX */
 	return 0;
 }
