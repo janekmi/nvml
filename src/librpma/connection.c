@@ -40,6 +40,7 @@
 
 #include "alloc.h"
 #include "connection.h"
+#include "dispatcher.h"
 #include "rpma_utils.h"
 #include "zone.h"
 
@@ -53,6 +54,8 @@ rpma_connection_new(struct rpma_zone *zone, struct rpma_connection **conn)
 		return RPMA_E_ERRNO;
 
 	ptr->zone = zone;
+
+	ptr->disp = NULL;
 
 	ptr->on_connection_recv_func = NULL;
 	ptr->on_transmission_notify_func = NULL;
@@ -106,8 +109,9 @@ ep_init(struct rpma_connection *conn, struct fi_info *info)
 		.wait_set = NULL,
 	};
 
-	/* XXX dispatcher ? */
-	ret = fi_cq_open(zone->domain, &cq_attr, &conn->cq, NULL);
+	void *context = conn;
+
+	ret = fi_cq_open(zone->domain, &cq_attr, &conn->cq, context);
 	if (ret) {
 		ERR_FI(ret, "fi_cq_open");
 		goto err_cq_open;
@@ -232,6 +236,8 @@ rpma_connection_delete(struct rpma_connection **conn)
 {
 	struct rpma_connection *ptr = *conn;
 
+	ASSERTne(ptr->disp, NULL);
+
 	ep_fini(ptr);
 
 	int ret = rpma_connection_rma_fini(ptr);
@@ -275,13 +281,25 @@ int
 rpma_connection_attach(struct rpma_connection *conn,
 		struct rpma_dispatcher *disp)
 {
-	return RPMA_E_NOSUPP;
+	int ret = rpma_dispatcher_attach_connection(disp, conn);
+	if (ret)
+		return ret;
+
+	conn->disp = disp;
+
+	return 0;
 }
 
 int
 rpma_connection_detach(struct rpma_connection *conn)
 {
-	return RPMA_E_NOSUPP;
+	int ret = rpma_dispatcher_detach_connection(conn->disp, conn);
+	if (ret)
+		return ret;
+
+	conn->disp = NULL;
+
+	return 0;
 }
 
 int
@@ -307,4 +325,40 @@ rpma_connection_register_on_recv(struct rpma_connection *conn,
 	conn->on_connection_recv_func = func;
 
 	return 0;
+}
+
+#define CQ_DEFAULT_TIMEOUT 1000
+
+int
+rpma_connection_cq_wait(struct rpma_connection *conn, uint64_t flags,
+		void *op_context)
+{
+	struct fi_cq_msg_entry cq_entry;
+	int ret;
+
+	while (1) {
+		ret = (int)fi_cq_sread(conn->cq, &cq_entry, 1, NULL, CQ_DEFAULT_TIMEOUT);
+		if (ret == FI_EAGAIN)
+			continue;
+		if (ret)
+			goto err_cq_read;
+
+		if (!(cq_entry.flags & flags)) {
+			/* XXX mismatch enqueue for processing */
+			ASSERT(0);
+		}
+
+		if (cq_entry.op_context != op_context) {
+			/* XXX mismatch enqueue for processing */
+			ASSERT(0);
+		}
+
+		break;
+	}
+
+	return 0;
+
+err_cq_read:
+	ERR_FI(ret, "fi_cq_sread");
+	return ret;
 }

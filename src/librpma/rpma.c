@@ -38,24 +38,6 @@
 #include "rpma.h"
 
 int
-rpma_dispatcher_new(struct rpma_zone *zone, struct rpma_dispatcher **disp)
-{
-	return RPMA_E_NOSUPP;
-}
-
-int
-rpma_dispatch(struct rpma_dispatcher *disp)
-{
-	return RPMA_E_NOSUPP;
-}
-
-int
-rpma_dispatcher_delete(struct rpma_dispatcher **disp)
-{
-	return RPMA_E_NOSUPP;
-}
-
-int
 rpma_sequence_new(struct rpma_sequence **sequence)
 {
 	return RPMA_E_NOSUPP;

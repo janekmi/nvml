@@ -156,41 +156,6 @@ rpma_msg_get_ptr(struct rpma_connection *conn, void **ptr)
 	return 0;
 }
 
-#define CQ_DEFAULT_TIMEOUT 1000
-
-static int
-cq_wait(struct rpma_connection *conn, uint64_t flags, void *op_context)
-{
-	struct fi_cq_msg_entry cq_entry;
-	int ret;
-
-	while (1) {
-		ret = (int)fi_cq_sread(conn->cq, &cq_entry, 1, NULL, CQ_DEFAULT_TIMEOUT);
-		if (ret == FI_EAGAIN)
-			continue;
-		if (ret)
-			goto err_cq_read;
-
-		if (!(cq_entry.flags & flags)) {
-			/* XXX mismatch enqueue for processing */
-			ASSERT(0);
-		}
-
-		if (cq_entry.op_context != op_context) {
-			/* XXX mismatch enqueue for processing */
-			ASSERT(0);
-		}
-
-		break;
-	}
-
-	return 0;
-
-err_cq_read:
-	ERR_FI(ret, "fi_cq_sread");
-	return ret;
-}
-
 int
 rpma_connection_send(struct rpma_connection *conn, void *ptr)
 {
@@ -206,8 +171,7 @@ rpma_connection_send(struct rpma_connection *conn, void *ptr)
 		return ret;
 	}
 
-	/* CQ wait */
-	ret = cq_wait(conn, FI_SEND, ptr);
+	ret = rpma_connection_cq_wait(conn, FI_SEND, ptr);
 	if (ret)
 		return ret;
 

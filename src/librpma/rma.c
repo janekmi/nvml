@@ -133,6 +133,8 @@ rpma_connection_read(struct rpma_connection *conn,
 		return (int)ret;
 	}
 
+	/* XXX CQ wait */
+
 	return 0;
 }
 
