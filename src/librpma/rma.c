@@ -117,23 +117,28 @@ rpma_connection_read(struct rpma_connection *conn,
 
 	/* XXX WQ flush */
 
+	void *dst_addr = (void *)((uintptr_t)dst->ptr + dst_off);;
+
 	struct fi_msg_rma *rma = &conn->rma.msg;
 	rma->desc = dst->desc;
+	rma->context = dst_addr; /* XXX */
 	conn->rma.rma_iov.addr = src->raddr + src_off;
 	conn->rma.rma_iov.len = length;
-	conn->rma.msg_iov.iov_base = (void *)((uintptr_t)dst->ptr + dst_off);
+	conn->rma.msg_iov.iov_base = dst_addr;
 	conn->rma.msg_iov.iov_len = length;
 
 	uint64_t flags = conn->rma.flags;
 	flags |= FI_COMPLETION;
 
-	ssize_t ret = fi_readmsg(conn->ep, rma, flags);
+	int ret = (int)fi_readmsg(conn->ep, rma, flags);
 	if (ret) {
 		ERR_FI(ret, "fi_readmsg");
-		return (int)ret;
+		return ret;
 	}
 
-	/* XXX CQ wait */
+	ret = rpma_connection_cq_wait(conn, FI_READ, dst_addr);
+	if (ret)
+		return ret;
 
 	return 0;
 }

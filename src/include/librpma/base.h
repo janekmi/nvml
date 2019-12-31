@@ -179,21 +179,6 @@ int rpma_connection_register_on_recv(struct rpma_connection *conn,
 		rpma_on_connection_recv_func func);
 
 
-/* sequence of enquable functions */
-
-struct rpma_sequence;
-
-int rpma_sequence_new(struct rpma_sequence **sequence);
-
-int rpma_sequence_add_step(struct rpma_sequence *sequence,
-		rpma_queue_func func, void *arg);
-
-int rpma_connection_enqueue_sequence(struct rpma_connection *conn,
-		struct rpma_sequence *sequence);
-
-int rpma_sequence_delete(struct rpma_sequence **sequence);
-
-
 /* connection group */
 
 struct rpma_connection_group;

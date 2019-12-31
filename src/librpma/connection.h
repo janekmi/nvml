@@ -91,6 +91,7 @@ int rpma_connection_recv_post(struct rpma_connection *conn);
 
 int rpma_connection_cq_wait(struct rpma_connection *conn, uint64_t flags,
 		void *op_context);
+int rpma_connection_cq_process(struct rpma_connection *conn, void *uarg);
 
 
 #endif /* connection.h */

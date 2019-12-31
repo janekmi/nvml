@@ -327,7 +327,52 @@ rpma_connection_register_on_recv(struct rpma_connection *conn,
 	return 0;
 }
 
+static int
+cq_entry_process(struct rpma_connection *conn,
+		struct fi_cq_msg_entry *cq_entry, void *uarg)
+{
+	int ret = 0;
+	if (cq_entry->flags & FI_MSG) {
+		ASSERTeq(cq_entry->flags, FI_MSG | FI_RECV); /* XXX */
+
+		/* XXX uarg is still necesarry here? */
+		ret = conn->on_connection_recv_func(conn, cq_entry->op_context,
+				conn->zone->msg_size, uarg);
+	} else {
+		ASSERT(0);
+	}
+	/*} else if (cq_entry->flags & FI_RMA) { */
+		/* XXX conn->on_transmission_notify_func */
+	/* } */
+
+	return ret;
+}
+
+static int
+cq_entry_process_or_enqueue(struct rpma_connection *conn,
+		struct fi_cq_msg_entry *cq_entry)
+{
+	if (conn->disp)
+		return rpma_dispacher_enqueue(conn->disp, conn, cq_entry);
+
+	return cq_entry_process(conn, cq_entry, NULL);
+}
+
 #define CQ_DEFAULT_TIMEOUT 1000
+
+static inline int
+cq_read(struct rpma_connection *conn, struct fi_cq_msg_entry *cq_entry)
+{
+	int ret = (int)fi_cq_sread(conn->cq, &cq_entry, 1, NULL, CQ_DEFAULT_TIMEOUT);
+	if (ret == FI_EAGAIN)
+		return 0;
+	if (ret) {
+		ERR_FI(ret, "fi_cq_sread");
+		return ret;
+	}
+
+	return 0;
+}
 
 int
 rpma_connection_cq_wait(struct rpma_connection *conn, uint64_t flags,
@@ -335,30 +380,49 @@ rpma_connection_cq_wait(struct rpma_connection *conn, uint64_t flags,
 {
 	struct fi_cq_msg_entry cq_entry;
 	int ret;
+	int mismatch;
 
+	/* XXX additional stop condition? */
 	while (1) {
-		ret = (int)fi_cq_sread(conn->cq, &cq_entry, 1, NULL, CQ_DEFAULT_TIMEOUT);
-		if (ret == FI_EAGAIN)
-			continue;
+		ret = cq_read(conn, &cq_entry);
 		if (ret)
-			goto err_cq_read;
+			return ret;
 
-		if (!(cq_entry.flags & flags)) {
-			/* XXX mismatch enqueue for processing */
-			ASSERT(0);
-		}
+		mismatch = !(cq_entry.flags & flags);
+		mismatch |= (cq_entry.op_context != op_context);
 
-		if (cq_entry.op_context != op_context) {
-			/* XXX mismatch enqueue for processing */
-			ASSERT(0);
+		if (mismatch) {
+			ret = cq_entry_process_or_enqueue(conn, &cq_entry);
+			if (ret) {
+				/* XXX */
+				ASSERT(0);
+			}
+
+			continue;
 		}
 
 		break;
 	}
 
 	return 0;
+}
 
-err_cq_read:
-	ERR_FI(ret, "fi_cq_sread");
-	return ret;
+int
+rpma_connection_cq_process(struct rpma_connection *conn, void *uarg)
+{
+	struct fi_cq_msg_entry cq_entry;
+	int ret;
+
+	/* XXX stop condition? */
+	while (1) {
+		ret = cq_read(conn, &cq_entry);
+		if (ret)
+			return ret;
+
+		ret = cq_entry_process(conn, &cq_entry, uarg);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }

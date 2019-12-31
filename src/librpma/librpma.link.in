@@ -67,10 +67,6 @@ LIBRPMA_1.0 {
 		rpma_connection_enqueue;
 		rpma_connection_register_on_notify;
 		rpma_connection_register_on_recv;
-		rpma_sequence_new;
-		rpma_sequence_add_step;
-		rpma_connection_enqueue_sequence;
-		rpma_sequence_delete;
 		rpma_connection_group_new;
 		rpma_connection_group_add;
 		rpma_connection_group_remove;

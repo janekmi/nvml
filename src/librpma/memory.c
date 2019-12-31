@@ -50,23 +50,23 @@ usage_to_access(int usage)
 	uint64_t access = 0;
 
 	if (usage & RPMA_MR_READ_SRC) {
-		access |= FI_REMOTE_READ;
-		usage &= ~RPMA_MR_READ_SRC;
+		RPMA_FLAG_ON(access, FI_REMOTE_READ);
+		RPMA_FLAG_OFF(usage, RPMA_MR_READ_SRC)
 	}
 
 	if (usage & RPMA_MR_READ_DST) {
-		access |= FI_READ;
-		usage &= ~RPMA_MR_READ_DST;
+		RPMA_FLAG_ON(access, FI_READ);
+		RPMA_FLAG_OFF(usage, RPMA_MR_READ_DST);
 	}
 
 	if (usage & RPMA_MR_WRITE_SRC) {
-		access |= FI_WRITE;
-		usage &= ~RPMA_MR_WRITE_SRC;
+		RPMA_FLAG_ON(access, FI_WRITE);
+		RPMA_FLAG_OFF(usage, RPMA_MR_WRITE_SRC);
 	}
 
 	if (usage & RPMA_MR_WRITE_DST) {
-		access |= FI_REMOTE_WRITE;
-		usage &= ~RPMA_MR_WRITE_DST;
+		RPMA_FLAG_ON(access, FI_REMOTE_WRITE);
+		RPMA_FLAG_OFF(usage, RPMA_MR_WRITE_DST);
 	}
 
 	ASSERTeq(usage, 0);

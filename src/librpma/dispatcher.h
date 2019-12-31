@@ -36,13 +36,29 @@
 #ifndef RPMA_DISPATCHER_H
 #define RPMA_DISPATCHER_H
 
+#include "queue.h"
+
+struct rpma_dispatcher_entry
+{
+	PMDK_TAILQ_ENTRY(rpma_dispatcher_entry) next;
+
+	struct rpma_connection *conn;
+	struct fi_cq_msg_entry cq_entry;
+};
+
 struct rpma_dispatcher
 {
 	struct rpma_zone *zone;
 
-	 struct fid_poll *pollset;
+	/*
+	 * XXX if the user can guarantee no sequences for a dispatcher
+	 * probably waitset will be better here
+	 */
+	struct fid_poll *pollset;
 
-	 int wait_breaking; /* XXX */
+	int wait_breaking; /* XXX */
+
+	PMDK_TAILQ_HEAD(queuehead, rpma_dispatcher_entry) queue;
 };
 
 int rpma_dispatcher_attach_connection(struct rpma_dispatcher *disp,
@@ -50,5 +66,8 @@ int rpma_dispatcher_attach_connection(struct rpma_dispatcher *disp,
 
 int rpma_dispatcher_detach_connection(struct rpma_dispatcher *disp,
 		struct rpma_connection *conn);
+
+int rpma_dispacher_enqueue(struct rpma_dispatcher *disp,
+		struct rpma_connection *conn, struct fi_cq_msg_entry *cq_entry);
 
 #endif /* dispatcher.h */

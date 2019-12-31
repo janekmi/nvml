@@ -49,6 +49,9 @@
 #define ERR_FI(e, fmt, args...)\
 	ERR(fmt ": %s", ## args, fi_strerror((int)(e)))
 
+#define RPMA_FLAG_ON(set, flag) (set) |= (flag)
+#define RPMA_FLAG_OFF(set, flag) (set) &= ~(flag)
+
 void rpma_utils_res_close(struct fid *res, const char *desc);
 
 void rpma_utils_freeinfo(struct fi_info **info);

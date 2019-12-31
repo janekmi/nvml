@@ -38,32 +38,6 @@
 #include "rpma.h"
 
 int
-rpma_sequence_new(struct rpma_sequence **sequence)
-{
-	return RPMA_E_NOSUPP;
-}
-
-int
-rpma_sequence_add_step(struct rpma_sequence *sequence,
-		rpma_queue_func func, void *arg)
-{
-	return RPMA_E_NOSUPP;
-}
-
-int
-rpma_connection_enqueue_sequence(struct rpma_connection *conn,
-		struct rpma_sequence *sequence)
-{
-	return RPMA_E_NOSUPP;
-}
-
-int
-rpma_sequence_delete(struct rpma_sequence **sequence)
-{
-	return RPMA_E_NOSUPP;
-}
-
-int
 rpma_connection_group_new(struct rpma_connection_group **group)
 {
 	return RPMA_E_NOSUPP;

@@ -36,6 +36,7 @@
 
 #include "dispatcher.h"
 #include "rpma_utils.h"
+#include "queue.h"
 
 static int
 dispatcher_init(struct rpma_dispatcher *disp)
@@ -73,6 +74,8 @@ rpma_dispatcher_new(struct rpma_zone *zone, struct rpma_dispatcher **disp)
 	if (ret)
 		goto err_init;
 
+	PMDK_TAILQ_INIT(&ptr->queue);
+
 	*disp = ptr;
 
 	return 0;
@@ -82,11 +85,23 @@ err_init:
 	return ret;
 }
 
+static void
+queue_free(struct rpma_dispatcher *disp)
+{
+	/* XXX is it ok? */
+	while (!PMDK_TAILQ_EMPTY(&disp->queue)) {
+		struct rpma_dispatcher_entry *e = PMDK_TAILQ_FIRST(&disp->queue);
+		PMDK_TAILQ_REMOVE(&disp->queue, e, next);
+		Free(e);
+	}
+}
+
 int
 rpma_dispatcher_delete(struct rpma_dispatcher **ptr)
 {
 	struct rpma_dispatcher *disp = *ptr;
 	dispatcher_fini(disp);
+	queue_free(disp);
 
 	Free(disp);
 	*ptr = NULL;
@@ -155,8 +170,28 @@ rpma_dispatch(struct rpma_dispatcher *disp)
 
 		conn = context;
 
-		/* XXX rpma_connection_cq_wait() */
+		ret = rpma_connection_cq_process(conn);
+		if (ret)
+			return ret;
+
+		/* XXX dispatcher_enqueue + queue processing */
 	}
+
+	return 0;
+}
+
+int
+rpma_dispacher_enqueue(struct rpma_dispatcher *disp,
+		struct rpma_connection *conn, struct fi_cq_msg_entry *cq_entry)
+{
+	struct rpma_dispatcher_entry *entry = Malloc(sizeof(*entry));
+	if (!entry)
+		return RPMA_E_ERRNO;
+
+	entry->conn = conn;
+	memcpy(&entry->cq_entry, cq_entry, sizeof(*cq_entry));
+
+	PMDK_TAILQ_INSERT_TAIL(disp->queue, entry, next);
 
 	return 0;
 }
