@@ -97,9 +97,6 @@ struct msg_t {
 };
 
 struct client_t {
-	struct rpma_sequence *init;
-	struct rpma_sequence *revisit;
-
 	pthread_t thread; /* dispatcher thread */
 	uint64_t running;
 
@@ -132,23 +129,20 @@ hello_init(struct rpma_connection *conn, void *uarg)
 	rpma_connection_write(conn, clnt->remote.mem, 0, clnt->local.mem, 0,
 			HELLO_SIZE);
 	rpma_connection_commit(conn);
+
+	rpma_connection_disconnect(conn);
+
 	return 0;
 }
 
 static int
-hello_read(struct rpma_connection *conn, void *uarg)
+hello_revisit(struct rpma_connection *conn, void *uarg)
 {
 	struct client_t *clnt = uarg;
 	printf("read message from the target...\n");
 	rpma_connection_read(conn, clnt->local.mem, 0, clnt->remote.mem, 0,
 			HELLO_SIZE);
-	return 0;
-}
 
-static int
-hello_translate_and_write(struct rpma_connection *conn, void *uarg)
-{
-	struct client_t *clnt = uarg;
 	struct hello_t *hello = clnt->local.ptr;
 
 	printf("translating...\n");
@@ -160,13 +154,8 @@ hello_translate_and_write(struct rpma_connection *conn, void *uarg)
 			HELLO_SIZE);
 	rpma_connection_commit(conn);
 
-	return 0;
-}
-
-static int
-hello_done(struct rpma_connection *conn, void *uarg)
-{
 	rpma_connection_disconnect(conn);
+
 	return 0;
 }
 
@@ -182,9 +171,9 @@ on_connection_recv(struct rpma_connection *conn, void *ptr, size_t length,
 	rpma_memory_remote_new(b->zone, &msg->id, &clnt->remote.mem);
 
 	if (msg->init_required)
-		rpma_connection_enqueue_sequence(b->conn, clnt->init);
+		rpma_connection_enqueue(b->conn, hello_init, clnt);
 	else
-		rpma_connection_enqueue_sequence(b->conn, clnt->revisit);
+		rpma_connection_enqueue(b->conn, hello_revisit, clnt);
 
 	return 0;
 }
@@ -206,11 +195,19 @@ send_msg(struct rpma_connection *conn, void *uarg)
 	return 0;
 }
 
+#define TIMEOUT_COUNT_MAX 100
+
 static int
 on_timeout(struct rpma_zone *zone, void *uarg)
 {
-	printf("RPMA zone connection timeout.\n");
-	rpma_zone_wait_break(zone);
+	static int count = 0;
+	printf("RPMA zone connection timeout %d\n", count);
+
+	if (count == TIMEOUT_COUNT_MAX)
+		rpma_zone_wait_break(zone);
+
+	++count;
+
 	return 0;
 }
 
@@ -307,16 +304,6 @@ remote_init(struct base_t *b)
 				RPMA_MR_WRITE_DST | RPMA_MR_READ_DST,
 				&clnt->local.mem);
 
-		rpma_sequence_new(&clnt->init);
-		rpma_sequence_add_step(clnt->init, hello_init, clnt);
-		rpma_sequence_add_step(clnt->init, hello_done, clnt);
-
-		rpma_sequence_new(&clnt->revisit);
-		rpma_sequence_add_step(clnt->revisit, hello_read, clnt);
-		rpma_sequence_add_step(clnt->revisit, hello_translate_and_write,
-				clnt);
-		rpma_sequence_add_step(clnt->revisit, hello_done, clnt);
-
 		pthread_create(&clnt->thread, NULL, dispatcher_thread_func, b);
 		break;
 	case TYPE_SERVER:
@@ -340,9 +327,6 @@ remote_fini(struct base_t *b)
 
 		clnt->running = 0; /* XXX atomic */
 		pthread_join(clnt->thread, NULL);
-
-		rpma_sequence_delete(&clnt->revisit);
-		rpma_sequence_delete(&clnt->init);
 
 		rpma_memory_local_delete(&clnt->local.mem);
 		break;
@@ -377,6 +361,8 @@ parse_args(int argc, char *argv[], struct base_t *b)
 	default:
 		goto err_usage;
 	}
+
+	return;
 
 err_usage:
 	fprintf(stderr,
@@ -456,6 +442,9 @@ main(int argc, char *argv[])
 
 	mem_init(&base);
 	remote_init(&base);
+
+	if (base.type == TYPE_SERVER)
+		rpma_listen(base.zone);
 
 	rpma_zone_wait_connections(base.zone, &base);
 
