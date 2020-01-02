@@ -34,8 +34,10 @@
  * zone.c -- entry points for librpma zone
  */
 
+#include <netinet/in.h>
 #include <stdint.h>
 #include <rdma/fabric.h>
+#include <rdma/fi_cm.h>
 #include <rdma/fi_eq.h>
 #include <rdma/fi_endpoint.h>
 
@@ -316,6 +318,34 @@ err_free:
 	return ret;
 }
 
+static void
+pep_dump(struct rpma_zone *zone)
+{
+	unsigned short port;
+
+	if (zone->info->addr_format == FI_SOCKADDR_IN) {
+		struct sockaddr_in addr_in;
+		size_t addrlen = sizeof(addr_in);
+
+		int ret = fi_getname(&zone->pep->fid, &addr_in, &addrlen);
+		if (ret) {
+			ERR_FI(ret, "fi_getname");
+			return;
+		}
+
+		if (!addr_in.sin_port) {
+			ERR("addr_in.sin_por == 0");
+			return;
+		}
+
+		port = htons(addr_in.sin_port);
+
+		fprintf(stderr, ": %u", port);
+	} else {
+		ASSERT(0);
+	}
+}
+
 int
 rpma_listen(struct rpma_zone *zone)
 {
@@ -331,8 +361,17 @@ rpma_listen(struct rpma_zone *zone)
 		goto err_pep_bind;
 	}
 
+	ret = fi_listen(zone->pep);
+	if (ret) {
+		ERR_FI(ret, "fi_listen");
+		goto err_pep_listen;
+	}
+
+	pep_dump(zone);
+
 	return 0;
 
+err_pep_listen:
 err_pep_bind:
 	rpma_utils_res_close(&zone->pep->fid, "pep");
 	zone->pep = NULL;
@@ -500,15 +539,14 @@ rpma_zone_wait_connected(struct rpma_zone *zone, struct rpma_connection *conn)
 			break;
 		}
 
-		switch (event) {
-		case FI_CONNECTED:
+		if (event == FI_CONNECTED) {
 			if (entry.fid != &conn->ep->fid) {
 				ERR("unexpected fid received (%p)", entry.fid);
 				ret = RPMA_E_EQ_EVENT_DATA;
 			}
 			conn_store(zone->connections, conn);
 			break;
-		default:
+		} else {
 			ERR("unexpected event received (%u)", event);
 			ret = RPMA_E_EQ_EVENT;
 			break;
