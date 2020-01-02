@@ -44,14 +44,15 @@ SOURCE =\
 	$(COMMON)/out.c\
 	$(COMMON)/util.c\
 	$(COMMON)/util_posix.c\
-	connection.c\
 	config.c\
+	connection.c\
+	dispatcher.c\
 	librpma.c\
 	memory.c\
 	msg.c\
 	rma.c\
-	rpma.c\
 	rpma_utils.c\
+	rpma.c\
 	zone.c
 
 include ../Makefile.inc

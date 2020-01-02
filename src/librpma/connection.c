@@ -355,7 +355,7 @@ cq_entry_process_or_enqueue(struct rpma_connection *conn,
 		struct fi_cq_msg_entry *cq_entry)
 {
 	if (conn->disp)
-		return rpma_dispacher_enqueue(conn->disp, conn, cq_entry);
+		return rpma_dispatcher_enqueue_cq_entry(conn->disp, conn, cq_entry);
 
 	return cq_entry_process(conn, cq_entry, NULL);
 }

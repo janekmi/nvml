@@ -34,9 +34,16 @@
  * dispatcher.c -- entry points for librpma dispatcher
  */
 
+#include <librpma/base.h>
+#include <rdma/fi_domain.h>
+#include <rdma/fi_eq.h>
+
+#include "alloc.h"
+#include "connection.h"
 #include "dispatcher.h"
 #include "rpma_utils.h"
 #include "queue.h"
+#include "zone.h"
 
 static int
 dispatcher_init(struct rpma_dispatcher *disp)
@@ -58,7 +65,7 @@ dispatcher_init(struct rpma_dispatcher *disp)
 static void
 dispatcher_fini(struct rpma_dispatcher *disp)
 {
-	rpma_utils_res_close(&disp->pollset, "pollset");
+	rpma_utils_res_close(&disp->pollset->fid, "pollset");
 }
 
 int
@@ -70,7 +77,7 @@ rpma_dispatcher_new(struct rpma_zone *zone, struct rpma_dispatcher **disp)
 
 	ptr->zone = zone;
 
-	int ret = dispatcher_init(*ptr);
+	int ret = dispatcher_init(ptr);
 	if (ret)
 		goto err_init;
 
@@ -115,7 +122,7 @@ rpma_dispatcher_attach_connection(struct rpma_dispatcher *disp,
 {
 	int ret;
 	uint64_t flags = 0;
-	ret = fi_poll_add(disp->pollset, conn->cq->fid, flags);
+	ret = fi_poll_add(disp->pollset, &conn->cq->fid, flags);
 	if (ret) {
 		ERR_FI(ret, "fi_poll_add");
 		return ret;
@@ -130,7 +137,7 @@ rpma_dispatcher_detach_connection(struct rpma_dispatcher *disp,
 {
 	int ret;
 	uint64_t flags = 0;
-	ret = fi_poll_del(disp->pollset, conn->cq->fid, flags);
+	ret = fi_poll_del(disp->pollset, &conn->cq->fid, flags);
 	if (ret) {
 		ERR_FI(ret, "fi_poll_del");
 		return ret;
@@ -170,7 +177,7 @@ rpma_dispatch(struct rpma_dispatcher *disp)
 
 		conn = context;
 
-		ret = rpma_connection_cq_process(conn);
+		ret = rpma_connection_cq_process(conn, NULL);
 		if (ret)
 			return ret;
 
@@ -191,7 +198,7 @@ rpma_dispatcher_enqueue_cq_entry(struct rpma_dispatcher *disp,
 	entry->conn = conn;
 	memcpy(&entry->cq_entry, cq_entry, sizeof(*cq_entry));
 
-	PMDK_TAILQ_INSERT_TAIL(disp->queue, entry, next);
+	PMDK_TAILQ_INSERT_TAIL(&disp->queue, entry, next);
 
 	return 0;
 }

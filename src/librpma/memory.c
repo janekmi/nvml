@@ -51,7 +51,7 @@ usage_to_access(int usage)
 
 	if (usage & RPMA_MR_READ_SRC) {
 		RPMA_FLAG_ON(access, FI_REMOTE_READ);
-		RPMA_FLAG_OFF(usage, RPMA_MR_READ_SRC)
+		RPMA_FLAG_OFF(usage, RPMA_MR_READ_SRC);
 	}
 
 	if (usage & RPMA_MR_READ_DST) {
