@@ -88,7 +88,7 @@ rpma_memory_local_new_internal(struct rpma_zone *zone, void *ptr, size_t size,
 	}
 
 	struct rpma_memory_local *mem = Malloc(sizeof(*mem));
-	if (!ptr)
+	if (!mem)
 		return RPMA_E_ERRNO;
 
 	mem->ptr = ptr;

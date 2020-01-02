@@ -50,8 +50,8 @@
 #include "connection.h"
 
 #define PROVIDER_STR "sockets" /* XXX */
-#define RX_TX_SIZE 500 /* XXX */
-#define RPMEM_FIVERSION FI_VERSION(1, 4)
+#define RX_TX_SIZE 256 /* XXX */
+#define RPMA_FIVERSION FI_VERSION(1, 4)
 #define DEFAULT_TIMEOUT 1000
 
 #define EQ_TIMEOUT 1
@@ -114,16 +114,14 @@ err_strdup:
 }
 
 static void
-hints_delete(struct fi_info **hints_ptr)
+hints_delete(struct fi_info **hints)
 {
-	struct fi_info *hints = *hints_ptr;
+	struct fi_info *ptr = *hints;
 
-	if (hints->fabric_attr->prov_name) {
-		Free(hints->fabric_attr->prov_name);
-		hints->fabric_attr->prov_name = NULL;
-	}
+	Free(ptr->fabric_attr->prov_name);
+	ptr->fabric_attr->prov_name = NULL;
 
-	rpma_utils_freeinfo(hints_ptr);
+	rpma_utils_freeinfo(hints);
 }
 
 static int
@@ -134,7 +132,8 @@ info_new(struct rpma_config *cfg, struct fi_info **info)
 	if (ret)
 		return ret;
 
-	ret = fi_getinfo(RPMEM_FIVERSION, cfg->addr, cfg->service, 0 /* flags */,
+	uint64_t flags = 0; /* XXX FI_SOURCE? */
+	ret = fi_getinfo(RPMA_FIVERSION, cfg->addr, cfg->service, flags,
 			hints, info);
 	if (ret) {
 		ERR_FI(ret, "fi_getinfo");
@@ -433,15 +432,18 @@ zone_on_timeout(struct rpma_zone *zone, void *uarg)
 int
 rpma_zone_wait_connections(struct rpma_zone *zone, void *uarg)
 {
-	if (!zone->pep)
-		return RPMA_E_NOT_LISTENING;
-
 	zone->uarg = uarg;
 
 	int ret;
 	struct fi_eq_cm_entry entry;
 	uint32_t event;
 	struct rpma_connection *conn;
+
+	if (!zone->pep) {
+		ret = zone->on_connection_event_func(zone, RPMA_CONNECTION_EVENT_OUTGOING, NULL, uarg);
+		if (ret)
+			return ret;
+	}
 
 	while (zone_is_waiting(zone)) {
 		ret = eq_read(zone->eq, &entry, &event, zone->timeout);
@@ -477,14 +479,12 @@ rpma_zone_wait_connections(struct rpma_zone *zone, void *uarg)
 		}
 	}
 
-	return RPMA_E_NOSUPP;
+	return 0;
 }
 
 int
 rpma_zone_wait_connected(struct rpma_zone *zone, struct rpma_connection *conn)
 {
-	ASSERTne(zone->pep, NULL);
-
 	int ret = 0;
 	struct fi_eq_cm_entry entry;
 	uint32_t event;

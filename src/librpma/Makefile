@@ -42,6 +42,7 @@ SOURCE =\
 	$(COMMON)/os_posix.c\
 	$(COMMON)/os_thread_posix.c\
 	$(COMMON)/out.c\
+	$(COMMON)/ravl.c\
 	$(COMMON)/util.c\
 	$(COMMON)/util_posix.c\
 	config.c\
@@ -58,4 +59,6 @@ SOURCE =\
 include ../Makefile.inc
 
 CFLAGS += -I.
+CFLAGS += $(shell $(PKG_CONFIG) --cflags libfabric)
 LIBS += -pthread
+LIBS += $(shell $(PKG_CONFIG) --libs libfabric)
