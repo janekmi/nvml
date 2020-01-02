@@ -67,7 +67,9 @@ int rpma_dispatcher_attach_connection(struct rpma_dispatcher *disp,
 int rpma_dispatcher_detach_connection(struct rpma_dispatcher *disp,
 		struct rpma_connection *conn);
 
-int rpma_dispacher_enqueue(struct rpma_dispatcher *disp,
+int rpma_dispatcher_enqueue_cq_entry(struct rpma_dispatcher *disp,
 		struct rpma_connection *conn, struct fi_cq_msg_entry *cq_entry);
+int rpma_dispatcher_enqueue_func(struct rpma_dispatcher *disp,
+		struct rpma_connection *conn, rpma_queue_func func, void *arg);
 
 #endif /* dispatcher.h */

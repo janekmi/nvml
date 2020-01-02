@@ -181,7 +181,7 @@ rpma_dispatch(struct rpma_dispatcher *disp)
 }
 
 int
-rpma_dispacher_enqueue(struct rpma_dispatcher *disp,
+rpma_dispatcher_enqueue_cq_entry(struct rpma_dispatcher *disp,
 		struct rpma_connection *conn, struct fi_cq_msg_entry *cq_entry)
 {
 	struct rpma_dispatcher_entry *entry = Malloc(sizeof(*entry));
@@ -192,6 +192,15 @@ rpma_dispacher_enqueue(struct rpma_dispatcher *disp,
 	memcpy(&entry->cq_entry, cq_entry, sizeof(*cq_entry));
 
 	PMDK_TAILQ_INSERT_TAIL(disp->queue, entry, next);
+
+	return 0;
+}
+
+int
+rpma_dispatcher_enqueue_func(struct rpma_dispatcher *disp,
+		struct rpma_connection *conn, rpma_queue_func func, void *arg)
+{
+	/* XXX */
 
 	return 0;
 }

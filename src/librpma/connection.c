@@ -306,6 +306,8 @@ int
 rpma_connection_enqueue(struct rpma_connection *conn, rpma_queue_func func,
 		void *arg)
 {
+	ASSERTne(conn->disp, NULL); /* XXX */
+
 	return RPMA_E_NOSUPP;
 }
 
