@@ -66,7 +66,7 @@ struct hello_t {
 
 #define HELLO_SIZE	(sizeof(struct hello_t))
 
-#define RPMA_TIMEOUT (60) /* 1m */
+#define RPMA_TIMEOUT (15000) /* 15s */
 
 #define TYPE_SERVER ('s')
 #define TYPE_CLIENT ('c')
@@ -249,6 +249,7 @@ on_connection_event(struct rpma_zone *zone, uint64_t event,
 
 		/* register transmission callback */
 		rpma_connection_register_on_recv(b->conn, on_connection_recv);
+		rpma_dispatch(b->disp); /* XXX single run */
 		break;
 
 	case RPMA_CONNECTION_EVENT_DISCONNECT:
@@ -285,6 +286,9 @@ remote_init(struct base_t *b)
 	rpma_config_set_recv_queue_length(cfg, 1);
 	rpma_config_set_msg_size(cfg, sizeof(struct msg_t));
 	rpma_config_set_queue_alloc_funcs(cfg, malloc, free);
+
+	if (b->type == TYPE_SERVER)
+		rpma_config_set_flags(cfg, RPMA_CONFIG_IS_SERVER);
 
 	rpma_zone_new(cfg, &b->zone);
 	rpma_config_delete(&cfg);
@@ -410,6 +414,7 @@ mem_init(struct base_t *b)
 		svr->ptr = pmem_map_file(b->file, HELLO_SIZE,
 					PMEM_FILE_CREATE, O_RDWR,
 					&svr->total_size, NULL);
+		assert(svr->ptr != NULL);
 		b->specific = svr;
 	}
 }
