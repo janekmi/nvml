@@ -41,6 +41,7 @@ LIBRPMA_1.0 {
 		rpma_config_set_send_queue_length;
 		rpma_config_set_recv_queue_length;
 		rpma_config_set_queue_alloc_funcs;
+		rpma_config_set_flags;
 		rpma_config_delete;
 		rpma_zone_new;
 		rpma_listen;

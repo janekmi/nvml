@@ -41,6 +41,7 @@
 #include "alloc.h"
 #include "connection.h"
 #include "dispatcher.h"
+#include "memory.h"
 #include "rpma_utils.h"
 #include "zone.h"
 
@@ -159,6 +160,22 @@ ep_fini(struct rpma_connection *conn)
 	return 0;
 }
 
+static int
+recv_post_all(struct rpma_connection *conn)
+{
+	int ret;
+	void *ptr = conn->recv_buff->ptr;
+
+	for (uint64_t i = 0; i < conn->zone->recv_queue_length; ++i) {
+		ret = rpma_connection_recv_post(conn, ptr);
+		if (ret)
+			return ret;
+		ptr = (void *)((uintptr_t)ptr + conn->zone->msg_size);
+	}
+
+	return 0;
+}
+
 int
 rpma_connection_accept(struct rpma_connection *conn)
 {
@@ -166,7 +183,9 @@ rpma_connection_accept(struct rpma_connection *conn)
 	if (ret)
 		return ret;
 
-	rpma_connection_recv_post(conn);
+	ret = recv_post_all(conn);
+	if (ret)
+		goto err_recv_post_all;
 
 	/* XXX use param buffer? */
 	ret = fi_accept(conn->ep, NULL, 0);
@@ -183,6 +202,7 @@ rpma_connection_accept(struct rpma_connection *conn)
 
 err_connected:
 err_accept:
+err_recv_post_all:
 	ep_fini(conn);
 	return ret;
 }
@@ -200,6 +220,10 @@ int
 rpma_connection_establish(struct rpma_connection *conn)
 {
 	int ret = ep_init(conn, conn->zone->info);
+	if (ret)
+		return ret;
+
+	ret = recv_post_all(conn);
 	if (ret)
 		return ret;
 
@@ -306,9 +330,9 @@ int
 rpma_connection_enqueue(struct rpma_connection *conn, rpma_queue_func func,
 		void *arg)
 {
-	ASSERTne(conn->disp, NULL); /* XXX */
+	ASSERTne(conn->disp, NULL); /* XXX ? */
 
-	return RPMA_E_NOSUPP;
+	return rpma_dispatcher_enqueue_func(conn->disp, conn, func, arg);
 }
 
 int
@@ -329,8 +353,8 @@ rpma_connection_register_on_recv(struct rpma_connection *conn,
 	return 0;
 }
 
-static int
-cq_entry_process(struct rpma_connection *conn,
+int
+rpma_connection_cq_entry_process(struct rpma_connection *conn,
 		struct fi_cq_msg_entry *cq_entry, void *uarg)
 {
 	int ret = 0;
@@ -357,7 +381,7 @@ cq_entry_process_or_enqueue(struct rpma_connection *conn,
 	if (conn->disp)
 		return rpma_dispatcher_enqueue_cq_entry(conn->disp, conn, cq_entry);
 
-	return cq_entry_process(conn, cq_entry, NULL);
+	return rpma_connection_cq_entry_process(conn, cq_entry, NULL);
 }
 
 #define CQ_DEFAULT_TIMEOUT 1000
@@ -366,14 +390,15 @@ static inline int
 cq_read(struct rpma_connection *conn, struct fi_cq_msg_entry *cq_entry)
 {
 	int ret = (int)fi_cq_sread(conn->cq, &cq_entry, 1, NULL, CQ_DEFAULT_TIMEOUT);
-	if (ret == FI_EAGAIN)
+	if (ret == -FI_EAGAIN)
 		return 0;
-	if (ret) {
+	if (ret < 0) {
 		ERR_FI(ret, "fi_cq_sread");
 		return ret;
 	}
 
-	return 0;
+	ASSERTeq(ret, 1); /* XXX ? */
+	return ret;
 }
 
 int
@@ -387,7 +412,9 @@ rpma_connection_cq_wait(struct rpma_connection *conn, uint64_t flags,
 	/* XXX additional stop condition? */
 	while (1) {
 		ret = cq_read(conn, &cq_entry);
-		if (ret)
+		if (ret == 0)
+			continue;
+		else if (ret < 0)
 			return ret;
 
 		mismatch = !(cq_entry.flags & flags);
@@ -418,10 +445,12 @@ rpma_connection_cq_process(struct rpma_connection *conn, void *uarg)
 	/* XXX stop condition? */
 	while (1) {
 		ret = cq_read(conn, &cq_entry);
-		if (ret)
+		if (ret == 0)
+			continue;
+		else if (ret < 0)
 			return ret;
 
-		ret = cq_entry_process(conn, &cq_entry, uarg);
+		ret = rpma_connection_cq_entry_process(conn, &cq_entry, uarg);
 		if (ret)
 			return ret;
 	}

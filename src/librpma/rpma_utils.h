@@ -56,4 +56,8 @@ void rpma_utils_res_close(struct fid *res, const char *desc);
 
 void rpma_utils_freeinfo(struct fi_info **info);
 
+void rpma_utils_wait_start(uint64_t *wait_breaking);
+void rpma_utils_wait_break(uint64_t *wait_breaking);
+uint64_t rpma_utils_is_waiting(uint64_t *wait_breaking);
+
 #endif /* RPMA_UTILS_H */

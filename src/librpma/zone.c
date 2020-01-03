@@ -134,7 +134,10 @@ info_new(struct rpma_config *cfg, struct fi_info **info)
 	if (ret)
 		return ret;
 
-	uint64_t flags = 0; /* XXX FI_SOURCE? */
+	uint64_t flags = 0;
+	if (cfg->flags & RPMA_CONFIG_IS_SERVER)
+		flags |= FI_SOURCE;
+
 	ret = fi_getinfo(RPMA_FIVERSION, cfg->addr, cfg->service, flags,
 			hints, info);
 	if (ret) {
@@ -294,7 +297,7 @@ rpma_zone_new(struct rpma_config *cfg, struct rpma_zone **zone)
 	ptr->active_connections = 0;
 	ptr->connections = ravl_new(ep_conn_pair_compare);
 
-	ptr->wait_breaking = 0;
+	ptr->waiting = 0;
 
 	ptr->on_connection_event_func = NULL;
 	ptr->on_timeout_func = NULL;
@@ -340,7 +343,7 @@ pep_dump(struct rpma_zone *zone)
 
 		port = htons(addr_in.sin_port);
 
-		fprintf(stderr, ": %u", port);
+		fprintf(stderr, ": %u\n", port);
 	} else {
 		ASSERT(0);
 	}
@@ -420,14 +423,6 @@ rpma_zone_unregister_on_timeout(struct rpma_zone *zone)
 }
 
 static int
-zone_is_waiting(struct rpma_zone *zone)
-{
-	int breaking;
-	util_atomic_load_explicit32(&zone->wait_breaking, &breaking, memory_order_acquire);
-	return !breaking;
-}
-
-static int
 eq_read(struct fid_eq *eq, struct fi_eq_cm_entry *entry,
 		uint32_t *event, int timeout)
 {
@@ -478,13 +473,16 @@ rpma_zone_wait_connections(struct rpma_zone *zone, void *uarg)
 	uint32_t event;
 	struct rpma_connection *conn;
 
+	uint64_t *waiting = &zone->waiting;
+	rpma_utils_wait_start(waiting);
+
 	if (!zone->pep) {
 		ret = zone->on_connection_event_func(zone, RPMA_CONNECTION_EVENT_OUTGOING, NULL, uarg);
 		if (ret)
 			return ret;
 	}
 
-	while (zone_is_waiting(zone)) {
+	while (rpma_utils_is_waiting(waiting)) {
 		ret = eq_read(zone->eq, &entry, &event, zone->timeout);
 		if (ret == EQ_TIMEOUT) {
 			if (zone_on_timeout(zone, uarg))
@@ -528,7 +526,7 @@ rpma_zone_wait_connected(struct rpma_zone *zone, struct rpma_connection *conn)
 	struct fi_eq_cm_entry entry;
 	uint32_t event;
 
-	while (zone_is_waiting(zone)) {
+	while (rpma_utils_is_waiting(&zone->waiting)) {
 		ret = eq_read(zone->eq, &entry, &event, zone->timeout);
 		if (ret == EQ_TIMEOUT) {
 			if (zone_on_timeout(zone, zone->uarg))
@@ -559,11 +557,6 @@ rpma_zone_wait_connected(struct rpma_zone *zone, struct rpma_connection *conn)
 int
 rpma_zone_wait_break(struct rpma_zone *zone)
 {
-	/*
-	 * load and store without barriers should be good enough here.
-	 * fetch_and_or are used as workaround for helgrind issue.
-	 */
-	util_fetch_and_or32(&zone->wait_breaking, 1);
-
+	rpma_utils_wait_break(&zone->waiting);
 	return 0;
 }

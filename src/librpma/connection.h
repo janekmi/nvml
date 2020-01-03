@@ -52,7 +52,6 @@ struct rpma_rma {
 struct rpma_msg {
 	struct fi_msg msg;	/* message structure */
 	struct iovec iov;	/* IO vector buffer */
-	void *desc;		/* local memory descriptor */
 	uint64_t flags;		/* MSG operation flags */
 };
 
@@ -86,12 +85,13 @@ int rpma_connection_rma_fini(struct rpma_connection *conn);
 int rpma_connection_msg_init(struct rpma_connection *conn);
 int rpma_connection_msg_fini(struct rpma_connection *conn);
 
-int rpma_connection_recv(struct rpma_connection *conn, void *ptr);
-int rpma_connection_recv_post(struct rpma_connection *conn);
+int rpma_connection_recv_post(struct rpma_connection *conn, void *ptr);
 
 int rpma_connection_cq_wait(struct rpma_connection *conn, uint64_t flags,
 		void *op_context);
 int rpma_connection_cq_process(struct rpma_connection *conn, void *uarg);
 
+int rpma_connection_cq_entry_process(struct rpma_connection *conn,
+		struct fi_cq_msg_entry *cq_entry, void *uarg);
 
 #endif /* connection.h */

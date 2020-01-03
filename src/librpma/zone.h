@@ -50,7 +50,7 @@ struct rpma_zone {
 	uint64_t active_connections;
 	struct ravl *connections;
 
-	int wait_breaking;
+	uint64_t waiting;
 
 	rpma_on_connection_event_func on_connection_event_func;
 	rpma_on_timeout_func on_timeout_func;
@@ -58,8 +58,8 @@ struct rpma_zone {
 
 	/* XXX should be rpma_connection specific? */
 	size_t msg_size;
-	size_t send_queue_length;
-	size_t recv_queue_length;
+	uint64_t send_queue_length;
+	uint64_t recv_queue_length;
 };
 
 int rpma_zone_wait_connected(struct rpma_zone *zone, struct rpma_connection *conn);

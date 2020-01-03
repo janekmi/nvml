@@ -37,13 +37,23 @@
 #define RPMA_DISPATCHER_H
 
 #include "queue.h"
+#include "os_thread.h"
 
-struct rpma_dispatcher_entry
+struct rpma_dispatcher_cq_entry
 {
-	PMDK_TAILQ_ENTRY(rpma_dispatcher_entry) next;
+	PMDK_TAILQ_ENTRY(rpma_dispatcher_cq_entry) next;
 
 	struct rpma_connection *conn;
 	struct fi_cq_msg_entry cq_entry;
+};
+
+struct rpma_dispatcher_func_entry
+{
+	PMDK_TAILQ_ENTRY(rpma_dispatcher_func_entry) next;
+
+	struct rpma_connection *conn;
+	rpma_queue_func func;
+	void *arg;
 };
 
 struct rpma_dispatcher
@@ -56,9 +66,12 @@ struct rpma_dispatcher
 	 */
 	struct fid_poll *pollset;
 
-	int wait_breaking; /* XXX */
+	uint64_t wait_breaking;
 
-	PMDK_TAILQ_HEAD(queuehead, rpma_dispatcher_entry) queue;
+	PMDK_TAILQ_HEAD(head_cq, rpma_dispatcher_cq_entry) queue_cqe;
+
+	os_mutex_t queue_func_mtx;
+	PMDK_TAILQ_HEAD(head_fq, rpma_dispatcher_func_entry) queue_func;
 };
 
 int rpma_dispatcher_attach_connection(struct rpma_dispatcher *disp,

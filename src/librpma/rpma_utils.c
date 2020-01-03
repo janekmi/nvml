@@ -52,3 +52,31 @@ rpma_utils_freeinfo(struct fi_info **info)
 	fi_freeinfo(*info);
 	*info = NULL;
 }
+
+void
+rpma_utils_wait_start(uint64_t *waiting)
+{
+	/*
+	 * load and store without barriers should be good enough here.
+	 * fetch_and_or are used as workaround for helgrind issue.
+	 */
+	util_fetch_and_or64(waiting, 1);
+}
+
+void
+rpma_utils_wait_break(uint64_t *waiting)
+{
+	/*
+	 * load and store without barriers should be good enough here.
+	 * fetch_and_or are used as workaround for helgrind issue.
+	 */
+	util_fetch_and_and32(waiting, 0);
+}
+
+uint64_t
+rpma_utils_is_waiting(uint64_t *waiting)
+{
+	uint64_t is_waiting;
+	util_atomic_load_explicit64(&waiting, &is_waiting, memory_order_acquire);
+	return is_waiting;
+}

@@ -101,14 +101,14 @@ rpma_config_set_msg_size(struct rpma_config *cfg, size_t msg_size)
 }
 
 int
-rpma_config_set_send_queue_length(struct rpma_config *cfg, size_t queue_len)
+rpma_config_set_send_queue_length(struct rpma_config *cfg, uint64_t queue_len)
 {
 	cfg->send_queue_length = queue_len;
 	return 0;
 }
 
 int
-rpma_config_set_recv_queue_length(struct rpma_config *cfg, size_t queue_len)
+rpma_config_set_recv_queue_length(struct rpma_config *cfg, uint64_t queue_len)
 {
 	cfg->recv_queue_length = queue_len;
 	return 0;
@@ -120,6 +120,14 @@ rpma_config_set_queue_alloc_funcs(struct rpma_config *cfg,
 {
 	cfg->malloc = malloc_func;
 	cfg->free = free_func;
+	return 0;
+}
+
+int
+rpma_config_set_flags(struct rpma_config *cfg, unsigned flags)
+{
+	/* XXX verify if all flags are valid */
+	cfg->flags = flags;
 	return 0;
 }
 
@@ -139,3 +147,4 @@ rpma_config_delete(struct rpma_config **cfg)
 
 	return 0;
 }
+
