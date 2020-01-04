@@ -1,0 +1,79 @@
+#
+# Copyright 2019, Intel Corporation
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+#     * Redistributions of source code must retain the above copyright
+#       notice, this list of conditions and the following disclaimer.
+#
+#     * Redistributions in binary form must reproduce the above copyright
+#       notice, this list of conditions and the following disclaimer in
+#       the documentation and/or other materials provided with the
+#       distribution.
+#
+#     * Neither the name of the copyright holder nor the names of its
+#       contributors may be used to endorse or promote products derived
+#       from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+#
+# src/librpma.link -- linker link file for librpma
+#
+LIBRPMA_1.0 {
+	global:
+		rpma_device_by_src_address;
+		rpma_device_by_dst_address;
+		rpma_device_delete;
+		rpma_peer_cfg_new;
+		rpma_peer_cfg_delete;
+		rpma_peer_new;
+		rpma_peer_delete;
+		rpma_conn_cfg_new;
+		rpma_conn_cfg_set_msg_buffer_alloc_funcs;
+		rpma_conn_cfg_set_max_msg_size;
+		rpma_conn_cfg_set_send_buffers_num;
+		rpma_conn_cfg_set_recv_buffers_num;
+		rpma_conn_cfg_set_setup_timeout;
+		rpma_conn_cfg_set_op_timeout;
+		rpma_conn_cfg_delete;
+		rpma_connect;
+		rpma_conn_set_app_context;
+		rpma_conn_get_app_context;
+		rpma_disconnect;
+		rpma_listen;
+		rpma_socket_fd;
+		rpma_accept;
+		rpma_close;
+		rpma_wait;
+		rpma_send_buffer_get;
+		rpma_send;
+		rpma_recv_buffer_get;
+		rpma_recv_buffer_return;
+		rpma_memory_new;
+		rpma_memory_get_ptr;
+		rpma_memory_get_size;
+		rpma_memory_get_id;
+		rpma_memory_delete;
+		rpma_memory_remote_new;
+		rpma_memory_remote_get_size;
+		rpma_memory_remote_delete;
+		rpma_read;
+		rpma_write;
+		rpma_flush;
+		rpma_errormsg;
+	local:
+		*;
+};
