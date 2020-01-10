@@ -41,13 +41,15 @@
 #include <unistd.h>
 #include <stdlib.h>
 
+#include "rand.h"
 #include "vgraph.h"
 #include "pgraph.h"
 #include "os_thread.h"
 #include "unittest.h"
 
 struct create_params_t {
-	unsigned seed;
+	uint64_t seed;
+	rng_t rng;
 
 	struct vgraph_params vparams;
 	struct pgraph_params pparams;
@@ -60,10 +62,10 @@ struct create_params_t {
  */
 static void
 graph_create(struct create_params_t *task, PMEMobjpool *pop, PMEMoid *oidp,
-		unsigned *seedp)
+		rng_t *rngp)
 {
-	struct vgraph_t *vgraph = vgraph_new(&task->vparams, seedp);
-	pgraph_new(pop, oidp, vgraph, &task->pparams, seedp);
+	struct vgraph_t *vgraph = vgraph_new(&task->vparams, rngp);
+	pgraph_new(pop, oidp, vgraph, &task->pparams, rngp);
 	vgraph_delete(vgraph);
 }
 
@@ -198,7 +200,7 @@ dump_compare(const char *path1, const char *path2)
 static void
 create_params_init(struct create_params_t *params)
 {
-	params->seed = 0;
+	params->seed = 1;
 
 	/* good enough defaults - no magic here */
 	params->vparams.max_nodes = 50;
@@ -333,7 +335,7 @@ op_graph_create(const struct test_case *tc, int argc, char *argv[])
 
 	struct root_t *root = get_root(1, min_root_size);
 
-	srand(cparams.seed);
+	randomize(cparams.seed);
 
 	/* generate a single graph */
 	graph_create(&cparams, global.pop, &root->graphs[0], NULL);
@@ -434,7 +436,7 @@ create_n_defrag_thread(void *arg)
 	struct create_params_t *cparams = &params->cparams;
 
 	for (unsigned i = 0; i < params->ncycles; ++i) {
-		graph_create(cparams, global.pop, params->oidp, &cparams->seed);
+		graph_create(cparams, global.pop, params->oidp, &cparams->rng);
 		graph_dump(*params->oidp, dump1);
 
 		graph_defrag_ntimes(params->pop, *params->oidp,
@@ -487,6 +489,7 @@ op_graph_create_n_defrag_mt(const struct test_case *tc, int argc, char *argv[])
 		params->thread_id = i;
 		memcpy(&params->cparams, &cparams, sizeof(cparams));
 		params->cparams.seed += i;
+		randomize_r(&params->cparams.rng, params->cparams.seed);
 		params->pop = global.pop;
 		params->oidp = &root->graphs[i];
 		params->max_rounds = max_rounds;
@@ -503,7 +506,7 @@ op_graph_create_n_defrag_mt(const struct test_case *tc, int argc, char *argv[])
 	/* join all threads */
 	void *ret = NULL;
 	for (unsigned i = 0; i < nthreads; ++i) {
-		os_thread_join(&threads[i], ret);
+		os_thread_join(&threads[i], &ret);
 		UT_ASSERTeq(ret, NULL);
 	}
 

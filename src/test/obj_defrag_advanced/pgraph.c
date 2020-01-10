@@ -85,10 +85,10 @@ pnode_init(PMEMobjpool *pop, PMEMoid pnode_oid, struct vnode_t *vnode,
  * order_shuffle -- shuffle the nodes in graph
  */
 static void
-order_shuffle(unsigned *order, unsigned num, unsigned *seedp)
+order_shuffle(unsigned *order, unsigned num, rng_t *rngp)
 {
 	for (unsigned i = 0; i < num; ++i) {
-		unsigned j = rand_range(0, num, seedp);
+		unsigned j = rand_range(0, num, rngp);
 		unsigned temp = order[j];
 		order[j] = order[i];
 		order[i] = temp;
@@ -99,7 +99,7 @@ order_shuffle(unsigned *order, unsigned num, unsigned *seedp)
  * order_new -- generate the sequence of the graph nodes allocation
  */
 static unsigned *
-order_new(struct vgraph_t *vgraph, unsigned *seedp)
+order_new(struct vgraph_t *vgraph, rng_t *rngp)
 {
 	unsigned *order = (unsigned *)MALLOC(sizeof(unsigned)
 		* vgraph->nodes_num);
@@ -108,7 +108,7 @@ order_new(struct vgraph_t *vgraph, unsigned *seedp)
 	for (unsigned i = 0; i < vgraph->nodes_num; ++i)
 		order[i] = i;
 
-	order_shuffle(order, vgraph->nodes_num, seedp);
+	order_shuffle(order, vgraph->nodes_num, rngp);
 
 	return order;
 }
@@ -117,13 +117,13 @@ order_new(struct vgraph_t *vgraph, unsigned *seedp)
  * pgraph_copy_new -- allocate a persistent copy of the volatile graph
  */
 static PMEMoid *
-pgraph_copy_new(PMEMobjpool *pop, struct vgraph_t *vgraph, unsigned *seedp)
+pgraph_copy_new(PMEMobjpool *pop, struct vgraph_t *vgraph, rng_t *rngp)
 {
 	/* to be returned array of PMEMoids to raw nodes allocations */
 	PMEMoid *nodes = (PMEMoid *)MALLOC(sizeof(PMEMoid) * vgraph->nodes_num);
 
 	/* generates random order of nodes allocation */
-	unsigned *order = order_new(vgraph, seedp);
+	unsigned *order = order_new(vgraph, rngp);
 
 	/* allocate the nodes in the random order */
 	int ret;
@@ -170,7 +170,7 @@ pgraph_size(unsigned nodes_num)
  */
 void
 pgraph_new(PMEMobjpool *pop, PMEMoid *oidp, struct vgraph_t *vgraph,
-		struct pgraph_params *params, unsigned *seedp)
+		struct pgraph_params *params, rng_t *rngp)
 {
 	int ret = pmemobj_alloc(pop, oidp, pgraph_size(vgraph->nodes_num),
 			0, NULL, NULL);
@@ -188,14 +188,14 @@ pgraph_new(PMEMobjpool *pop, PMEMoid *oidp, struct vgraph_t *vgraph,
 	}
 
 	/* prepare multiple copies of the nodes */
-	unsigned copies_num = rand_range(1, params->graph_copies, seedp);
+	unsigned copies_num = rand_range(1, params->graph_copies, rngp);
 	PMEMoid **copies = (PMEMoid **)MALLOC(sizeof(PMEMoid *) * copies_num);
 	for (unsigned i = 0; i < copies_num; ++i)
-		copies[i] = pgraph_copy_new(pop, vgraph, seedp);
+		copies[i] = pgraph_copy_new(pop, vgraph, rngp);
 
 	/* peek exactly the one copy of each node */
 	for (unsigned i = 0; i < pgraph->nodes_num; ++i) {
-		unsigned copy_id = rand_range(0, copies_num, seedp);
+		unsigned copy_id = rand_range(0, copies_num, rngp);
 		pgraph->nodes[i] = copies[copy_id][i];
 		copies[copy_id][i] = OID_NULL;
 	}

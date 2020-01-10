@@ -37,6 +37,8 @@
 #ifndef OBJ_DEFRAG_ADV_VGRAPH
 #define OBJ_DEFRAG_ADV_VGRAPH
 
+#include "rand.h"
+
 struct vgraph_params
 {
 	unsigned max_nodes; /* max # of nodes per graph */
@@ -66,9 +68,9 @@ struct vgraph_t
 	struct vnode_t node[];
 };
 
-unsigned rand_range(unsigned min, unsigned max, unsigned *seedp);
+unsigned rand_range(unsigned min, unsigned max, rng_t *rngp);
 
-struct vgraph_t *vgraph_new(struct vgraph_params *params, unsigned *seedp);
+struct vgraph_t *vgraph_new(struct vgraph_params *params, rng_t *rngp);
 void vgraph_delete(struct vgraph_t *graph);
 
 #endif

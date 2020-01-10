@@ -60,7 +60,7 @@ struct pgraph_t
 };
 
 void pgraph_new(PMEMobjpool *pop, PMEMoid *oidp, struct vgraph_t *vgraph,
-		struct pgraph_params *params, unsigned *seedp);
+		struct pgraph_params *params, rng_t *rngp);
 void pgraph_delete(PMEMoid *oidp);
 
 void pgraph_print(struct pgraph_t *graph, const char *dump);
