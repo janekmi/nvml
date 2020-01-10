@@ -30,18 +30,12 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile />
     <Link />
-    <ClCompile>
-      <AdditionalIncludeDirectories>$(SolutionDir)\windows\getopt\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-    </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile />
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
-    <ClCompile>
-      <AdditionalIncludeDirectories>$(SolutionDir)\windows\getopt\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-    </ClCompile>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -59,16 +53,12 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(SolutionDir)windows\getopt;$(IncludePath)</IncludePath>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IncludePath>$(SolutionDir)windows\getopt;$(IncludePath)</IncludePath>
+    <IncludePath>$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <Optimization>Disabled</Optimization>
-      <CompileAs>CompileAsCpp</CompileAs>
     </ClCompile>
     <Link />
   </ItemDefinitionGroup>
@@ -76,7 +66,6 @@
     <ClCompile>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <Optimization>MaxSpeed</Optimization>
-      <CompileAs>CompileAsCpp</CompileAs>
     </ClCompile>
     <Link />
   </ItemDefinitionGroup>
@@ -95,17 +84,21 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <None Include="README" />
     <None Include="TESTS.py" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="obj_defrag_advanced.c" />
     <ClCompile Include="pgraph.c" />
     <ClCompile Include="vgraph.c" />
+    <ClCompile Include="..\..\common\rand.c" />
+    <ClCompile Include="..\..\common\os_thread_windows.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pgraph.h" />
     <ClInclude Include="vgraph.h" />
+    <ClInclude Include="..\..\common\os_thread.h" />
+    <ClInclude Include="..\..\common\rand.h" />
+    <ClInclude Include="..\unittest\unittest.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
