@@ -323,6 +323,53 @@ rpmem_fip_lane_fini(struct rpmem_fip_lane *lanep)
 }
 
 /*
+ * rpmem_fip_lane_empty -- (internal) collect all entries from CQ
+ */
+static int
+rpmem_fip_lane_empty(struct rpmem_fip *fip, struct rpmem_fip_lane *lanep)
+{
+	ssize_t sret = 0;
+	struct fi_cq_err_entry err;
+	const char *str_err;
+	int ret = 0;
+	struct fi_cq_msg_entry cq_entry;
+
+	while (1) {
+		if (unlikely(rpmem_fip_is_closing(fip)))
+			return ECONNRESET;
+
+		sret = fip->cq_read(lanep->cq, &cq_entry, 1);
+
+		if (unlikely(sret == -FI_EAGAIN) || sret == 0)
+			break;
+
+		if (unlikely(sret < 0)) {
+			ret = (int)sret;
+			goto err_cq_read;
+		}
+
+		lanep->event &= ~cq_entry.flags;
+	}
+
+	return 0;
+err_cq_read:
+	sret = fi_cq_readerr(lanep->cq, &err, 0);
+	if (sret < 0) {
+		RPMEM_FI_ERR((int)sret, "error reading from completion queue: "
+			"cannot read error from event queue");
+		goto err;
+	}
+
+	str_err = fi_cq_strerror(lanep->cq, err.prov_errno, NULL, NULL, 0);
+	RPMEM_LOG(ERR, "error reading from completion queue: %s", str_err);
+err:
+	if (unlikely(rpmem_fip_is_closing(fip)))
+		return ECONNRESET; /* it will be passed to errno */
+
+	return ret;
+}
+
+/*
  * rpmem_fip_lane_wait -- (internal) wait for specific event on completion queue
  */
 static int
@@ -1130,6 +1177,9 @@ rpmem_fip_flush_raw(struct rpmem_fip *fip, size_t offset, size_t len,
 
 	if (flags & RPMEM_FIP_WQ_FLUSH_REQ)
 		rpmem_fip_wq_set_flushing(lanep);
+
+	/* XXX */
+	rpmem_fip_lane_empty(fip, &lanep->base);
 
 	return 0;
 }
