@@ -30,12 +30,5 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-#
-# src/test/obj_pmalloc_mt/Makefile -- build obj_pmalloc_mt unit test
-#
-TARGET = obj_pmalloc_mt
-OBJS = obj_pmalloc_mt.o
-
-LIBPMEMOBJ=internal-debug
-
-include ../Makefile.inc
+LDFLAGS=-pthread
+locking_issue_repro: locking_issue_repro.o
