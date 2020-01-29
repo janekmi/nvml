@@ -34,6 +34,7 @@
  * obj_pmalloc_mt.c -- multithreaded test of allocator
  */
 #include <stdint.h>
+#include <pthread.h>
 
 #include "file.h"
 #include "obj.h"
@@ -57,7 +58,9 @@ static unsigned Tx_per_thread;
 struct action {
 	struct pobj_action pact;
 	os_mutex_t lock;
+	unsigned padding1[10];
 	os_cond_t cond;
+	unsigned padding2[10];
 };
 
 struct root {
@@ -382,6 +385,9 @@ main(int argc, char *argv[])
 	PMEMoid oid = pmemobj_root(pop, sizeof(struct root));
 	struct root *r = pmemobj_direct(oid);
 	UT_ASSERTne(r, NULL);
+
+	fprintf(stdout, "mutex: %lu vs %lu\n", sizeof(os_mutex_t), sizeof(pthread_mutex_t));
+	fprintf(stdout, "cond: %lu vs %lu\n", sizeof(os_cond_t), sizeof(pthread_cond_t));
 
 	struct worker_args args[MAX_THREADS];
 
