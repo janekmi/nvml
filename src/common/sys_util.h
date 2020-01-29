@@ -337,6 +337,36 @@ util_cond_destroy(os_cond_t *__restrict cond)
 		FATAL("!os_cond_destroy");
 }
 
+/*
+ * util_cond_signal -- os_cond_signal variant that never fails from
+ * caller perspective. If os_cond_signal failed, this function aborts
+ * the program.
+ */
+static inline void
+util_cond_signal(os_cond_t *c)
+{
+	int tmp = os_cond_signal(c);
+	if (tmp) {
+		errno = tmp;
+		FATAL("!os_cond_signal");
+	}
+}
+
+/*
+ * util_cond_wait -- os_cond_wait variant that never fails from
+ * caller perspective. If os_cond_signal failed, this function aborts
+ * the program.
+ */
+static inline void
+util_cond_wait(os_cond_t *c, os_mutex_t *m)
+{
+	int tmp = os_cond_wait(c, m);
+	if (tmp) {
+		errno = tmp;
+		FATAL("!os_cond_wait");
+	}
+}
+
 #ifdef __cplusplus
 }
 #endif

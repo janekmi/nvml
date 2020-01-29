@@ -236,18 +236,18 @@ action_cancel_worker(void *arg)
 		unsigned arr_id = a->idx / 2;
 		struct action *act = &a->r->actions[arr_id][i];
 		if (a->idx % 2 == 0) {
-			os_mutex_lock(&act->lock);
+			util_mutex_lock(&act->lock);
 			oid = pmemobj_reserve(a->pop,
 				&act->pact, ALLOC_SIZE, 0);
 			UT_ASSERT(!OID_IS_NULL(oid));
-			os_cond_signal(&act->cond);
-			os_mutex_unlock(&act->lock);
+			util_cond_signal(&act->cond);
+			util_mutex_unlock(&act->lock);
 		} else {
-			os_mutex_lock(&act->lock);
+			util_mutex_lock(&act->lock);
 			while (act->pact.heap.offset == 0)
-				os_cond_wait(&act->cond, &act->lock);
+				util_cond_wait(&act->cond, &act->lock);
 			pmemobj_cancel(a->pop, &act->pact, 1);
-			os_mutex_unlock(&act->lock);
+			util_mutex_unlock(&act->lock);
 		}
 	}
 
@@ -264,18 +264,18 @@ action_publish_worker(void *arg)
 		unsigned arr_id = a->idx / 2;
 		struct action *act = &a->r->actions[arr_id][i];
 		if (a->idx % 2 == 0) {
-			os_mutex_lock(&act->lock);
+			util_mutex_lock(&act->lock);
 			oid = pmemobj_reserve(a->pop,
 				&act->pact, ALLOC_SIZE, 0);
 			UT_ASSERT(!OID_IS_NULL(oid));
-			os_cond_signal(&act->cond);
-			os_mutex_unlock(&act->lock);
+			util_cond_signal(&act->cond);
+			util_mutex_unlock(&act->lock);
 		} else {
-			os_mutex_lock(&act->lock);
+			util_mutex_lock(&act->lock);
 			while (act->pact.heap.offset == 0)
-				os_cond_wait(&act->cond, &act->lock);
+				util_cond_wait(&act->cond, &act->lock);
 			pmemobj_publish(a->pop, &act->pact, 1);
-			os_mutex_unlock(&act->lock);
+			util_mutex_unlock(&act->lock);
 		}
 	}
 
@@ -293,21 +293,21 @@ action_mix_worker(void *arg)
 		unsigned publish = i % 2;
 		struct action *act = &a->r->actions[arr_id][i];
 		if (a->idx % 2 == 0) {
-			os_mutex_lock(&act->lock);
+			util_mutex_lock(&act->lock);
 			oid = pmemobj_reserve(a->pop,
 				&act->pact, ALLOC_SIZE, 0);
 			UT_ASSERT(!OID_IS_NULL(oid));
-			os_cond_signal(&act->cond);
-			os_mutex_unlock(&act->lock);
+			util_cond_signal(&act->cond);
+			util_mutex_unlock(&act->lock);
 		} else {
-			os_mutex_lock(&act->lock);
+			util_mutex_lock(&act->lock);
 			while (act->pact.heap.offset == 0)
-				os_cond_wait(&act->cond, &act->lock);
+				util_cond_wait(&act->cond, &act->lock);
 			if (publish)
 				pmemobj_publish(a->pop, &act->pact, 1);
 			else
 				pmemobj_cancel(a->pop, &act->pact, 1);
-			os_mutex_unlock(&act->lock);
+			util_mutex_unlock(&act->lock);
 		}
 		pmemobj_persist(a->pop, act, sizeof(*act));
 	}
