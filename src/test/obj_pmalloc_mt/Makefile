@@ -39,3 +39,6 @@ OBJS = obj_pmalloc_mt.o
 LIBPMEMOBJ=internal-debug
 
 include ../Makefile.inc
+
+LDFLAGS=-pthread
+plain_pthread_repro: plain_pthread_repro.o
