@@ -188,6 +188,14 @@ run_worker(void *(worker_func)(void *arg), struct worker_args args[])
 		THREAD_JOIN(&t[i], NULL);
 }
 
+static inline void
+mutex_alter_type(struct action *a)
+{
+	pthread_mutex_t *plock = (pthread_mutex_t *)&a->prims->lock;
+	struct __pthread_mutex_s *lock = &plock->__data;
+	lock->__kind = 0; /* PTHREAD_MUTEX_NORMAL */
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -240,6 +248,8 @@ main(int argc, char *argv[])
 			memset((void*)a->prims, 0, sizeof(*a->prims));
 			util_mutex_init((os_mutex_t *)&a->prims->lock);
 			util_cond_init((os_cond_t *)&a->prims->cond);
+
+			mutex_alter_type(a);
 		}
 	}
 
