@@ -75,6 +75,15 @@ struct worker_args {
 	unsigned idx;
 };
 
+static inline void
+action_dump(unsigned thread, unsigned op, struct action *a)
+{
+	struct __pthread_mutex_s *lock =
+						(struct __pthread_mutex_s *)&a->lock;
+	printf("actions[%u][%u] = {nusers: %u, owner: %d}\n",
+			thread, op, lock->__nusers, lock->__owner);
+}
+
 static void *
 action_cancel_worker(void *arg)
 {
@@ -86,17 +95,21 @@ action_cancel_worker(void *arg)
 		struct action *act = &a->r->actions[arr_id][i];
 		if (a->idx % 2 == 0) {
 			util_mutex_lock(&act->lock);
+			action_dump(arr_id, i, act);
 			oid = pmemobj_reserve(a->pop,
 				&act->pact, ALLOC_SIZE, 0);
 			UT_ASSERT(!OID_IS_NULL(oid));
 			util_cond_signal(&act->cond);
 			util_mutex_unlock(&act->lock);
+			action_dump(arr_id, i, act);
 		} else {
 			util_mutex_lock(&act->lock);
+			action_dump(arr_id, i, act);
 			while (act->pact.heap.offset == 0)
 				util_cond_wait(&act->cond, &act->lock);
 			pmemobj_cancel(a->pop, &act->pact, 1);
 			util_mutex_unlock(&act->lock);
+			action_dump(arr_id, i, act);
 		}
 	}
 
@@ -113,8 +126,7 @@ actions_dump(struct root *r)
 					(struct __pthread_mutex_s *)&a->lock;
 			if (lock->__nusers == 0)
 				continue;
-			printf("actions[%u][%u] = {nusers: %u, owner: %d}\n",
-					i, j, lock->__nusers, lock->__owner);
+			action_dump(i, j, a);
 		}
 	}
 }
