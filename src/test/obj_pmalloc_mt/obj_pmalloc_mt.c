@@ -109,10 +109,12 @@ actions_dump(struct root *r)
 	for (unsigned i = 0; i < Threads; ++i) {
 		for (unsigned j = 0; j < Ops_per_thread; ++j) {
 			struct action *a = &r->actions[i][j];
-			pthread_mutex_t *lock = (pthread_mutex_t *)&a->lock;
-			if (lock->__data.__nusers == 0)
+			struct __pthread_mutex_s *lock =
+					(struct __pthread_mutex_s *)&a->lock;
+			if (lock->__nusers == 0)
 				continue;
-			printf("actions[%u][%u] = {nusers: %u}\n", i, j, lock->__data.__nusers);
+			printf("actions[%u][%u] = {nusers: %u, owner: %d}\n",
+					i, j, lock->__nusers, lock->__owner);
 		}
 	}
 }
