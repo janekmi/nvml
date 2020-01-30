@@ -219,13 +219,13 @@ actions_dump(struct root *r)
 static void
 run_worker(void *(worker_func)(void *arg), struct worker_args args[])
 {
-	os_thread_t t[MAX_THREADS];
+	pthread_t t[MAX_THREADS];
 
 	for (unsigned i = 0; i < Threads; ++i)
-		THREAD_CREATE(&t[i], NULL, worker_func, &args[i]);
+		pthread_create(&t[i], NULL, worker_func, &args[i]);
 
 	for (unsigned i = 0; i < Threads; ++i)
-		THREAD_JOIN(&t[i], NULL);
+		pthread_join(t[i], NULL);
 }
 
 int
