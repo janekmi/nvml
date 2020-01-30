@@ -123,8 +123,8 @@ action_cancel_worker(void *arg)
 // 			oid = pmemobj_reserve(a->pop,
 // 				&act->pact, ALLOC_SIZE, 0);
 // 			UT_ASSERT(!OID_IS_NULL(oid));
-			// act->pact.heap.offset = 1;
-			// util_cond_signal((os_cond_t *)&act->prims->cond);
+			act->pact.heap.offset = 1;
+			util_cond_signal((os_cond_t *)&act->prims->cond);
 
 			util_mutex_unlock((os_mutex_t *)&act->prims->lock);
 			action_dump(tid, arr_id, i, act, "unlock t0");
@@ -132,8 +132,8 @@ action_cancel_worker(void *arg)
 			util_mutex_lock((os_mutex_t *)&act->prims->lock);
 			action_dump(tid, arr_id, i, act, "lock t1");
 
-			//while (act->pact.heap.offset == 0)
-			//	util_cond_wait((os_cond_t *)&act->prims->cond, (os_mutex_t *)&act->prims->lock);
+			while (act->pact.heap.offset == 0)
+				util_cond_wait((os_cond_t *)&act->prims->cond, (os_mutex_t *)&act->prims->lock);
 //			pmemobj_cancel(a->pop, &act->pact, 1);
 
 			util_mutex_unlock((os_mutex_t *)&act->prims->lock);
