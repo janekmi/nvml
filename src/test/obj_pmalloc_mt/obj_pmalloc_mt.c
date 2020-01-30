@@ -99,22 +99,22 @@ action_cancel_worker(void *arg)
 		unsigned arr_id = a->idx / 2;
 		struct action *act = &a->r->actions[arr_id][i];
 		if (a->idx % 2 == 0) {
-			util_mutex_lock((os_mutex_t *)&act->lock);
+			util_mutex_lock(&act->lock);
 			action_dump(tid, arr_id, i, act, "lock t0");
 
 			act->val = 1;
-			util_cond_signal((os_cond_t *)&act->cond);
+			util_cond_signal(&act->cond);
 
-			util_mutex_unlock((os_mutex_t *)&act->lock);
+			util_mutex_unlock(&act->lock);
 			action_dump(tid, arr_id, i, act, "unlock t0");
 		} else {
-			util_mutex_lock((os_mutex_t *)&act->lock);
+			util_mutex_lock(&act->lock);
 			action_dump(tid, arr_id, i, act, "lock t1");
 
 			while (act->val == 0)
-				util_cond_wait((os_cond_t *)&act->cond, (os_mutex_t *)&act->lock);
+				util_cond_wait(&act->cond, &act->lock);
 
-			util_mutex_unlock((os_mutex_t *)&act->lock);
+			util_mutex_unlock(&act->lock);
 			action_dump(tid, arr_id, i, act, "unlock t1");
 		}
 	}
@@ -125,7 +125,18 @@ action_cancel_worker(void *arg)
 static void
 actions_dump(struct root *r)
 {
+	int tid = gettid();
 
+	for (unsigned i = 0; i < Threads; ++i) {
+		for (unsigned j = 0; j < Ops_per_thread; ++j) {
+			struct action *a = &r->actions[i][j];
+			struct __pthread_mutex_s *lock =
+					(struct __pthread_mutex_s *)&a->lock;
+			if (lock->__nusers == 0)
+				continue;
+			action_dump(tid, i, j, a, "dump");
+		}
+	}
 }
 
 static void
@@ -180,8 +191,8 @@ main(int argc, char *argv[])
 	for (unsigned i = 0; i < Threads; ++i) {
 		for (unsigned j = 0; j < Ops_per_thread; ++j) {
 			struct action *a = &r->actions[i][j];
-			util_mutex_destroy((os_mutex_t *)&a->lock);
-			util_cond_destroy((os_cond_t *)&a->cond);
+			util_mutex_destroy(&a->lock);
+			util_cond_destroy(&a->cond);
 		}
 	}
 
