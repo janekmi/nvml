@@ -80,8 +80,8 @@ struct worker_args {
 FILE *dump;
 
 static inline void
-action_dump(int tid, unsigned thread, unsigned op, struct action *a,
-		const char *comment)
+action_dump(int tid, unsigned thread, unsigned op,
+		volatile struct action *a, const char *comment)
 {
 	struct __pthread_mutex_s *lock =
 						(struct __pthread_mutex_s *)&a->lock;
