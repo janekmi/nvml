@@ -55,15 +55,21 @@ static unsigned Threads;
 static unsigned Ops_per_thread;
 static unsigned Tx_per_thread;
 
-#define PAD_SIZE 100
+struct pt_prims {
+	os_mutex_t lock;
+	os_cond_t cond;
+};
+
+//#define PAD_SIZE 100
 
 struct action {
 	struct pobj_action pact;
-	unsigned padding0[PAD_SIZE];
-	os_mutex_t lock;
-	unsigned padding1[PAD_SIZE];
-	os_cond_t cond;
-	unsigned padding2[PAD_SIZE];
+//	unsigned padding0[PAD_SIZE];
+//	os_mutex_t lock;
+//	unsigned padding1[PAD_SIZE];
+//	os_cond_t cond;
+//	unsigned padding2[PAD_SIZE];
+	struct pt_prims *prims;
 };
 
 struct root {
@@ -84,7 +90,7 @@ action_dump(int tid, unsigned thread, unsigned op,
 		volatile struct action *a, const char *comment)
 {
 	struct __pthread_mutex_s *lock =
-						(struct __pthread_mutex_s *)&a->lock;
+						(struct __pthread_mutex_s *)&a->prims->lock;
 	fprintf(dump, "%d -> actions[%u][%u] = {nusers: %u, owner: %d} (%s)\n",
 			tid, thread, op, lock->__nusers, lock->__owner, comment);
 }
@@ -106,22 +112,22 @@ action_cancel_worker(void *arg)
 		unsigned arr_id = a->idx / 2;
 		struct action *act = &a->r->actions[arr_id][i];
 		if (a->idx % 2 == 0) {
-			util_mutex_lock(&act->lock);
-			action_dump(tid, arr_id, i, act, "lock (idx %2 == 0)");
+			util_mutex_lock(&act->prims->lock);
+			action_dump(tid, arr_id, i, act, "lock (t0)");
 			oid = pmemobj_reserve(a->pop,
 				&act->pact, ALLOC_SIZE, 0);
 			UT_ASSERT(!OID_IS_NULL(oid));
-			util_cond_signal(&act->cond);
-			util_mutex_unlock(&act->lock);
-			action_dump(tid, arr_id, i, act, "unlock (idx %2 == 0)");
+			util_cond_signal(&act->prims->cond);
+			util_mutex_unlock(&act->prims->lock);
+			action_dump(tid, arr_id, i, act, "unlock (t0)");
 		} else {
-			util_mutex_lock(&act->lock);
-			action_dump(tid, arr_id, i, act, "lock (idx %2 == 1)");
+			util_mutex_lock(&act->prims->lock);
+			action_dump(tid, arr_id, i, act, "lock (t1)");
 			while (act->pact.heap.offset == 0)
-				util_cond_wait(&act->cond, &act->lock);
+				util_cond_wait(&act->prims->cond, &act->prims->lock);
 			pmemobj_cancel(a->pop, &act->pact, 1);
-			util_mutex_unlock(&act->lock);
-			action_dump(tid, arr_id, i, act, "unlock (idx %2 == 1)");
+			util_mutex_unlock(&act->prims->lock);
+			action_dump(tid, arr_id, i, act, "unlock (t1)");
 		}
 	}
 
@@ -137,7 +143,7 @@ actions_dump(struct root *r)
 		for (unsigned j = 0; j < Ops_per_thread; ++j) {
 			struct action *a = &r->actions[i][j];
 			struct __pthread_mutex_s *lock =
-					(struct __pthread_mutex_s *)&a->lock;
+					(struct __pthread_mutex_s *)&a->prims->lock;
 			if (lock->__nusers == 0)
 				continue;
 			action_dump(tid, i, j, a, "dump");
@@ -151,10 +157,10 @@ actions_clear(PMEMobjpool *pop, struct root *r)
 	for (unsigned i = 0; i < Threads; ++i) {
 		for (unsigned j = 0; j < Ops_per_thread; ++j) {
 			struct action *a = &r->actions[i][j];
-			util_mutex_destroy(&a->lock);
-			util_mutex_init(&a->lock);
-			util_cond_destroy(&a->cond);
-			util_cond_init(&a->cond);
+			util_mutex_destroy(&a->prims->lock);
+			util_mutex_init(&a->prims->lock);
+			util_cond_destroy(&a->prims->cond);
+			util_cond_init(&a->prims->cond);
 			memset(&a->pact, 0, sizeof(a->pact));
 			pmemobj_persist(pop, a, sizeof(*a));
 		}
@@ -221,8 +227,10 @@ main(int argc, char *argv[])
 		args[i].idx = i;
 		for (unsigned j = 0; j < Ops_per_thread; ++j) {
 			struct action *a = &r->actions[i][j];
-			util_mutex_init(&a->lock);
-			util_cond_init(&a->cond);
+			a->prims = malloc(sizeof(*a->prims));
+			memset(a->prims, 0, sizeof(*a->prims));
+			util_mutex_init(&a->prims->lock);
+			util_cond_init(&a->prims->cond);
 		}
 	}
 
