@@ -69,7 +69,7 @@ struct action {
 //	unsigned padding1[PAD_SIZE];
 //	os_cond_t cond;
 //	unsigned padding2[PAD_SIZE];
-	struct pt_prims *prims;
+	volatile struct pt_prims *prims;
 };
 
 struct root {
@@ -87,7 +87,7 @@ FILE *dump;
 
 static inline void
 action_dump(int tid, unsigned thread, unsigned op,
-		volatile struct action *a, const char *comment)
+		struct action *a, const char *comment)
 {
 	struct __pthread_mutex_s *lock =
 						(struct __pthread_mutex_s *)&a->prims->lock;
@@ -112,22 +112,26 @@ action_cancel_worker(void *arg)
 		unsigned arr_id = a->idx / 2;
 		struct action *act = &a->r->actions[arr_id][i];
 		if (a->idx % 2 == 0) {
-			util_mutex_lock(&act->prims->lock);
-			action_dump(tid, arr_id, i, act, "lock (t0)");
+			util_mutex_lock((os_mutex_t *)&act->prims->lock);
+			action_dump(tid, arr_id, i, act, "lock t0");
+
 			oid = pmemobj_reserve(a->pop,
 				&act->pact, ALLOC_SIZE, 0);
 			UT_ASSERT(!OID_IS_NULL(oid));
-			util_cond_signal(&act->prims->cond);
-			util_mutex_unlock(&act->prims->lock);
-			action_dump(tid, arr_id, i, act, "unlock (t0)");
+			util_cond_signal((os_cond_t *)&act->prims->cond);
+
+			util_mutex_unlock((os_mutex_t *)&act->prims->lock);
+			action_dump(tid, arr_id, i, act, "unlock t0");
 		} else {
-			util_mutex_lock(&act->prims->lock);
-			action_dump(tid, arr_id, i, act, "lock (t1)");
+			util_mutex_lock((os_mutex_t *)&act->prims->lock);
+			action_dump(tid, arr_id, i, act, "lock t1");
+
 			while (act->pact.heap.offset == 0)
-				util_cond_wait(&act->prims->cond, &act->prims->lock);
+				util_cond_wait((os_cond_t *)&act->prims->cond, (os_mutex_t *)&act->prims->lock);
 			pmemobj_cancel(a->pop, &act->pact, 1);
-			util_mutex_unlock(&act->prims->lock);
-			action_dump(tid, arr_id, i, act, "unlock (t1)");
+
+			util_mutex_unlock((os_mutex_t *)&act->prims->lock);
+			action_dump(tid, arr_id, i, act, "unlock t1");
 		}
 	}
 
@@ -157,10 +161,10 @@ actions_clear(PMEMobjpool *pop, struct root *r)
 	for (unsigned i = 0; i < Threads; ++i) {
 		for (unsigned j = 0; j < Ops_per_thread; ++j) {
 			struct action *a = &r->actions[i][j];
-			util_mutex_destroy(&a->prims->lock);
-			util_mutex_init(&a->prims->lock);
-			util_cond_destroy(&a->prims->cond);
-			util_cond_init(&a->prims->cond);
+			util_mutex_destroy((os_mutex_t *)&a->prims->lock);
+			util_mutex_init((os_mutex_t *)&a->prims->lock);
+			util_cond_destroy((os_cond_t *)&a->prims->cond);
+			util_cond_init((os_cond_t *)&a->prims->cond);
 			memset(&a->pact, 0, sizeof(a->pact));
 			pmemobj_persist(pop, a, sizeof(*a));
 		}
@@ -228,9 +232,9 @@ main(int argc, char *argv[])
 		for (unsigned j = 0; j < Ops_per_thread; ++j) {
 			struct action *a = &r->actions[i][j];
 			a->prims = malloc(sizeof(*a->prims));
-			memset(a->prims, 0, sizeof(*a->prims));
-			util_mutex_init(&a->prims->lock);
-			util_cond_init(&a->prims->cond);
+			memset((void*)a->prims, 0, sizeof(*a->prims));
+			util_mutex_init((os_mutex_t *)&a->prims->lock);
+			util_cond_init((os_cond_t *)&a->prims->cond);
 		}
 	}
 
