@@ -194,8 +194,7 @@ main(int argc, char *argv[])
 			UT_FATAL("!pmemobj_open");
 	}
 
-	PMEMoid oid = pmemobj_root(pop, sizeof(struct root));
-	struct root *r = pmemobj_direct(oid);
+	struct root *r = malloc(sizeof(*r));
 	UT_ASSERTne(r, NULL);
 
 	struct worker_args args[MAX_THREADS];
@@ -205,6 +204,7 @@ main(int argc, char *argv[])
 		args[i].idx = i;
 		for (unsigned j = 0; j < Ops_per_thread; ++j) {
 			struct action *a = &r->actions[i][j];
+			a->val = 0;
 			a->prims = malloc(sizeof(*a->prims));
 			memset((void*)a->prims, 0, sizeof(*a->prims));
 			util_mutex_init((os_mutex_t *)&a->prims->lock);
