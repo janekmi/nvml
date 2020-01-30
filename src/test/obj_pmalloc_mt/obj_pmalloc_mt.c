@@ -38,10 +38,6 @@
 #include <stdlib.h>
 #include <sys/syscall.h>
 
-#include "file.h"
-#include "obj.h"
-#include "pmalloc.h"
-#include "sys_util.h"
 #include "unittest.h"
 
 #define MAX_THREADS 32
@@ -52,8 +48,8 @@ static unsigned Ops_per_thread;
 static unsigned Tx_per_thread;
 
 struct action {
-	os_mutex_t lock;
-	os_cond_t cond;
+	pthread_mutex_t lock;
+	pthread_cond_t cond;
 	unsigned val;
 };
 
@@ -88,6 +84,87 @@ gettid()
 {
 	return (int)syscall(SYS_gettid);
 }
+
+static inline void
+util_mutex_init(pthread_mutex_t *mtx)
+{
+	int ret = pthread_mutex_init(mtx, NULL);
+	if (ret) {
+		errno = ret;
+		exit(1);
+	}
+}
+
+static inline void
+util_mutex_destroy(pthread_mutex_t *mtx)
+{
+	int ret = pthread_mutex_destroy(mtx);
+	if (ret) {
+		errno = ret;
+		exit(1);
+	}
+}
+
+static inline void
+util_mutex_lock(pthread_mutex_t *mtx)
+{
+	int ret = pthread_mutex_lock(mtx);
+	if (ret) {
+		errno = ret;
+		exit(1);
+	}
+}
+
+static inline void
+util_mutex_unlock(pthread_mutex_t *mtx)
+{
+	int ret = pthread_mutex_unlock(mtx);
+	if (ret) {
+		errno = ret;
+		exit(1);
+	}
+}
+
+static inline void
+util_cond_init(pthread_cond_t *cond)
+{
+	int ret = pthread_cond_init(cond, NULL);
+	if (ret) {
+		errno = ret;
+		exit(1);
+	}
+}
+
+static inline void
+util_cond_destroy(pthread_cond_t *cond)
+{
+	int ret = pthread_cond_destroy(cond);
+	if (ret) {
+		errno = ret;
+		exit(1);
+	}
+}
+
+static inline void
+util_cond_signal(pthread_cond_t *cond)
+{
+	int ret = pthread_cond_signal(cond);
+	if (ret) {
+		errno = ret;
+		exit(1);
+	}
+}
+
+static inline void
+util_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mtx)
+{
+	int ret = pthread_cond_signal(cond);
+	if (ret) {
+		errno = ret;
+		exit(1);
+	}
+}
+
 
 static void *
 action_cancel_worker(void *arg)
@@ -178,8 +255,8 @@ main(int argc, char *argv[])
 		for (unsigned j = 0; j < Ops_per_thread; ++j) {
 			struct action *a = &r->actions[i][j];
 			a->val = 0;
-			util_mutex_init((os_mutex_t *)&a->lock);
-			util_cond_init((os_cond_t *)&a->cond);
+			util_mutex_init(&a->lock);
+			util_cond_init(&a->cond);
 		}
 	}
 
