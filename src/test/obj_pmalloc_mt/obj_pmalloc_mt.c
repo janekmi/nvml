@@ -60,15 +60,8 @@ struct pt_prims {
 	os_cond_t cond;
 };
 
-//#define PAD_SIZE 100
-
 struct action {
 	struct pobj_action pact;
-//	unsigned padding0[PAD_SIZE];
-//	os_mutex_t lock;
-//	unsigned padding1[PAD_SIZE];
-//	os_cond_t cond;
-//	unsigned padding2[PAD_SIZE];
 	volatile struct pt_prims *prims;
 };
 
@@ -112,7 +105,6 @@ action_cancel_worker(void *arg)
 	struct worker_args *a = arg;
 	int tid = gettid();
 
-//	PMEMoid oid;
 	for (unsigned i = 0; i < Ops_per_thread; ++i) {
 		unsigned arr_id = a->idx / 2;
 		struct action *act = &a->r->actions[arr_id][i];
@@ -120,9 +112,6 @@ action_cancel_worker(void *arg)
 			util_mutex_lock((os_mutex_t *)&act->prims->lock);
 			action_dump(tid, arr_id, i, act, "lock t0");
 
-// 			oid = pmemobj_reserve(a->pop,
-// 				&act->pact, ALLOC_SIZE, 0);
-// 			UT_ASSERT(!OID_IS_NULL(oid));
 			act->pact.heap.offset = 1;
 			util_cond_signal((os_cond_t *)&act->prims->cond);
 
@@ -134,7 +123,6 @@ action_cancel_worker(void *arg)
 
 			while (act->pact.heap.offset == 0)
 				util_cond_wait((os_cond_t *)&act->prims->cond, (os_mutex_t *)&act->prims->lock);
-//			pmemobj_cancel(a->pop, &act->pact, 1);
 
 			util_mutex_unlock((os_mutex_t *)&act->prims->lock);
 			action_dump(tid, arr_id, i, act, "unlock t1");
@@ -171,14 +159,6 @@ run_worker(void *(worker_func)(void *arg), struct worker_args args[])
 
 	for (unsigned i = 0; i < Threads; ++i)
 		THREAD_JOIN(&t[i], NULL);
-}
-
-static inline void
-mutex_alter_type(struct action *a)
-{
-	pthread_mutex_t *plock = (pthread_mutex_t *)&a->prims->lock;
-	struct __pthread_mutex_s *lock = &plock->__data;
-	lock->__kind = 0; /* PTHREAD_MUTEX_NORMAL */
 }
 
 int
@@ -233,8 +213,6 @@ main(int argc, char *argv[])
 			memset((void*)a->prims, 0, sizeof(*a->prims));
 			util_mutex_init((os_mutex_t *)&a->prims->lock);
 			util_cond_init((os_cond_t *)&a->prims->cond);
-
-			mutex_alter_type(a);
 		}
 	}
 
