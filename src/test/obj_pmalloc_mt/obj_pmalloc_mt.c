@@ -35,6 +35,7 @@
  */
 #include <stdint.h>
 #include <pthread.h>
+#include <sys/types.h>
 
 #include "file.h"
 #include "obj.h"
@@ -78,18 +79,19 @@ struct worker_args {
 FILE *dump;
 
 static inline void
-action_dump(unsigned thread, unsigned op, struct action *a)
+action_dump(pthread_t tid, unsigned thread, unsigned op, struct action *a)
 {
 	struct __pthread_mutex_s *lock =
 						(struct __pthread_mutex_s *)&a->lock;
-	fprintf(dump, "actions[%u][%u] = {nusers: %u, owner: %d}\n",
-			thread, op, lock->__nusers, lock->__owner);
+	fprintf(dump, "%lu -> actions[%u][%u] = {nusers: %u, owner: %d}\n",
+			tid, thread, op, lock->__nusers, lock->__owner);
 }
 
 static void *
 action_cancel_worker(void *arg)
 {
 	struct worker_args *a = arg;
+	pthread_t tid = pthread_self();
 
 	PMEMoid oid;
 	for (unsigned i = 0; i < Ops_per_thread; ++i) {
@@ -97,21 +99,21 @@ action_cancel_worker(void *arg)
 		struct action *act = &a->r->actions[arr_id][i];
 		if (a->idx % 2 == 0) {
 			util_mutex_lock(&act->lock);
-			action_dump(arr_id, i, act);
+			action_dump(tid, arr_id, i, act);
 			oid = pmemobj_reserve(a->pop,
 				&act->pact, ALLOC_SIZE, 0);
 			UT_ASSERT(!OID_IS_NULL(oid));
 			util_cond_signal(&act->cond);
 			util_mutex_unlock(&act->lock);
-			action_dump(arr_id, i, act);
+			action_dump(tid, arr_id, i, act);
 		} else {
 			util_mutex_lock(&act->lock);
-			action_dump(arr_id, i, act);
+			action_dump(tid, arr_id, i, act);
 			while (act->pact.heap.offset == 0)
 				util_cond_wait(&act->cond, &act->lock);
 			pmemobj_cancel(a->pop, &act->pact, 1);
 			util_mutex_unlock(&act->lock);
-			action_dump(arr_id, i, act);
+			action_dump(tid, arr_id, i, act);
 		}
 	}
 
@@ -121,6 +123,8 @@ action_cancel_worker(void *arg)
 static void
 actions_dump(struct root *r)
 {
+	pthread_t tid = pthread_self();
+
 	for (unsigned i = 0; i < Threads; ++i) {
 		for (unsigned j = 0; j < Ops_per_thread; ++j) {
 			struct action *a = &r->actions[i][j];
@@ -128,7 +132,7 @@ actions_dump(struct root *r)
 					(struct __pthread_mutex_s *)&a->lock;
 			if (lock->__nusers == 0)
 				continue;
-			action_dump(i, j, a);
+			action_dump(tid, i, j, a);
 		}
 	}
 }
