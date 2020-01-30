@@ -35,7 +35,8 @@
  */
 #include <stdint.h>
 #include <pthread.h>
-#include <sys/types.h>
+#include <stdlib.h>
+#include <sys/syscall.h>
 
 #include "file.h"
 #include "obj.h"
@@ -79,19 +80,25 @@ struct worker_args {
 FILE *dump;
 
 static inline void
-action_dump(pthread_t tid, unsigned thread, unsigned op, struct action *a)
+action_dump(int tid, unsigned thread, unsigned op, struct action *a)
 {
 	struct __pthread_mutex_s *lock =
 						(struct __pthread_mutex_s *)&a->lock;
-	fprintf(dump, "%lu -> actions[%u][%u] = {nusers: %u, owner: %d}\n",
+	fprintf(dump, "%d -> actions[%u][%u] = {nusers: %u, owner: %d}\n",
 			tid, thread, op, lock->__nusers, lock->__owner);
+}
+
+static inline int
+gettid()
+{
+	return (int)syscall(SYS_gettid);
 }
 
 static void *
 action_cancel_worker(void *arg)
 {
 	struct worker_args *a = arg;
-	pthread_t tid = pthread_self();
+	int tid = gettid();
 
 	PMEMoid oid;
 	for (unsigned i = 0; i < Ops_per_thread; ++i) {
@@ -123,7 +130,7 @@ action_cancel_worker(void *arg)
 static void
 actions_dump(struct root *r)
 {
-	pthread_t tid = pthread_self();
+	int tid = gettid();
 
 	for (unsigned i = 0; i < Threads; ++i) {
 		for (unsigned j = 0; j < Ops_per_thread; ++j) {
