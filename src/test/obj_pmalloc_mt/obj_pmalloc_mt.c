@@ -104,6 +104,20 @@ action_cancel_worker(void *arg)
 }
 
 static void
+actions_dump(struct root *r)
+{
+	for (unsigned i = 0; i < Threads; ++i) {
+		for (unsigned j = 0; j < Ops_per_thread; ++j) {
+			struct action *a = &r->actions[i][j];
+			pthread_mutex_t *lock = (pthread_mutex_t *)&a->lock;
+			if (lock->__data.__nusers == 0)
+				continue;
+			printf("actions[%u][%u] = {nusers: %u}\n", i, j, lock->__data.__nusers);
+		}
+	}
+}
+
+static void
 actions_clear(PMEMobjpool *pop, struct root *r)
 {
 	for (unsigned i = 0; i < Threads; ++i) {
@@ -171,9 +185,6 @@ main(int argc, char *argv[])
 	struct root *r = pmemobj_direct(oid);
 	UT_ASSERTne(r, NULL);
 
-	fprintf(stdout, "mutex: %lu vs %lu\n", sizeof(os_mutex_t), sizeof(pthread_mutex_t));
-	fprintf(stdout, "cond: %lu vs %lu\n", sizeof(os_cond_t), sizeof(pthread_cond_t));
-
 	struct worker_args args[MAX_THREADS];
 
 	for (unsigned i = 0; i < Threads; ++i) {
@@ -189,6 +200,7 @@ main(int argc, char *argv[])
 
 	run_worker(action_cancel_worker, args);
 	sleep(5);
+	actions_dump(r);
 	actions_clear(pop, r);
 
 	pmemobj_close(pop);
