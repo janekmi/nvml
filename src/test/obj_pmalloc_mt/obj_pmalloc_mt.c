@@ -92,10 +92,11 @@ action_dump(int tid, unsigned thread, unsigned op,
 	pthread_mutex_t *plock = (pthread_mutex_t *)&a->prims->lock;
 	struct __pthread_mutex_s *lock = &plock->__data;
 
-	fprintf(dump, "%d -> actions[%u][%u] = {nusers: %u, owner: %d} (%s)\n",
+	fprintf(dump, "%d -> actions[%u][%u] = {nusers: %u, owner: %d, kind: %d} (%s)\n",
 			tid, thread, op,
 			*((volatile unsigned *)&(lock->__nusers)),
 			*((volatile int *)&(lock->__owner)),
+			*((volatile int *)&(lock->__kind)),
 			comment);
 }
 
