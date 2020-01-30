@@ -46,7 +46,6 @@
 
 #define MAX_THREADS 32
 #define MAX_OPS_PER_THREAD 1000
-// #define ALLOC_SIZE 104
 
 #define CHUNKSIZE (1 << 20)
 #define CHUNKS_PER_THREAD 3
@@ -61,17 +60,15 @@ struct pt_prims {
 };
 
 struct action {
-	struct pobj_action pact;
+	unsigned val;
 	volatile struct pt_prims *prims;
 };
 
 struct root {
-	uint64_t offs[MAX_THREADS][MAX_OPS_PER_THREAD];
 	struct action actions[MAX_THREADS][MAX_OPS_PER_THREAD];
 };
 
 struct worker_args {
-	PMEMobjpool *pop;
 	struct root *r;
 	unsigned idx;
 };
@@ -112,7 +109,7 @@ action_cancel_worker(void *arg)
 			util_mutex_lock((os_mutex_t *)&act->prims->lock);
 			action_dump(tid, arr_id, i, act, "lock t0");
 
-			act->pact.heap.offset = 1;
+			act->val = 1;
 			util_cond_signal((os_cond_t *)&act->prims->cond);
 
 			util_mutex_unlock((os_mutex_t *)&act->prims->lock);
@@ -121,7 +118,7 @@ action_cancel_worker(void *arg)
 			util_mutex_lock((os_mutex_t *)&act->prims->lock);
 			action_dump(tid, arr_id, i, act, "lock t1");
 
-			while (act->pact.heap.offset == 0)
+			while (act->val == 0)
 				util_cond_wait((os_cond_t *)&act->prims->cond, (os_mutex_t *)&act->prims->lock);
 
 			util_mutex_unlock((os_mutex_t *)&act->prims->lock);
@@ -204,7 +201,6 @@ main(int argc, char *argv[])
 	struct worker_args args[MAX_THREADS];
 
 	for (unsigned i = 0; i < Threads; ++i) {
-		args[i].pop = pop;
 		args[i].r = r;
 		args[i].idx = i;
 		for (unsigned j = 0; j < Ops_per_thread; ++j) {
