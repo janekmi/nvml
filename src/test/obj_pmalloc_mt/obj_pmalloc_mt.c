@@ -91,8 +91,12 @@ action_dump(int tid, unsigned thread, unsigned op,
 {
 	struct __pthread_mutex_s *lock =
 						(struct __pthread_mutex_s *)&a->prims->lock;
+
 	fprintf(dump, "%d -> actions[%u][%u] = {nusers: %u, owner: %d} (%s)\n",
-			tid, thread, op, lock->__nusers, lock->__owner, comment);
+			tid, thread, op,
+			*((volatile unsigned *)&(lock->__nusers)),
+			*((volatile int *)&(lock->__owner)),
+			comment);
 }
 
 static inline int
