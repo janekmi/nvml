@@ -89,8 +89,8 @@ static inline void
 action_dump(int tid, unsigned thread, unsigned op,
 		struct action *a, const char *comment)
 {
-	struct __pthread_mutex_s *lock =
-						(struct __pthread_mutex_s *)&a->prims->lock;
+	pthread_mutex_t *plock = (pthread_mutex_t *)&a->prims->lock;
+	struct __pthread_mutex_s *lock = &plock->__data;
 
 	fprintf(dump, "%d -> actions[%u][%u] = {nusers: %u, owner: %d} (%s)\n",
 			tid, thread, op,
