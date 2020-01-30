@@ -51,14 +51,10 @@ static unsigned Threads;
 static unsigned Ops_per_thread;
 static unsigned Tx_per_thread;
 
-struct pt_prims {
+struct action {
 	os_mutex_t lock;
 	os_cond_t cond;
-};
-
-struct action {
 	unsigned val;
-	volatile struct pt_prims *prims;
 };
 
 struct root {
@@ -76,7 +72,7 @@ static inline void
 action_dump(int tid, unsigned thread, unsigned op,
 		struct action *a, const char *comment)
 {
-	pthread_mutex_t *plock = (pthread_mutex_t *)&a->prims->lock;
+	pthread_mutex_t *plock = (pthread_mutex_t *)&a->lock;
 	struct __pthread_mutex_s *lock = &plock->__data;
 
 	fprintf(dump, "%d -> actions[%u][%u] = {nusers: %u, owner: %d, kind: %d} (%s)\n",
@@ -103,22 +99,22 @@ action_cancel_worker(void *arg)
 		unsigned arr_id = a->idx / 2;
 		struct action *act = &a->r->actions[arr_id][i];
 		if (a->idx % 2 == 0) {
-			util_mutex_lock((os_mutex_t *)&act->prims->lock);
+			util_mutex_lock((os_mutex_t *)&act->lock);
 			action_dump(tid, arr_id, i, act, "lock t0");
 
 			act->val = 1;
-			util_cond_signal((os_cond_t *)&act->prims->cond);
+			util_cond_signal((os_cond_t *)&act->cond);
 
-			util_mutex_unlock((os_mutex_t *)&act->prims->lock);
+			util_mutex_unlock((os_mutex_t *)&act->lock);
 			action_dump(tid, arr_id, i, act, "unlock t0");
 		} else {
-			util_mutex_lock((os_mutex_t *)&act->prims->lock);
+			util_mutex_lock((os_mutex_t *)&act->lock);
 			action_dump(tid, arr_id, i, act, "lock t1");
 
 			while (act->val == 0)
-				util_cond_wait((os_cond_t *)&act->prims->cond, (os_mutex_t *)&act->prims->lock);
+				util_cond_wait((os_cond_t *)&act->cond, (os_mutex_t *)&act->lock);
 
-			util_mutex_unlock((os_mutex_t *)&act->prims->lock);
+			util_mutex_unlock((os_mutex_t *)&act->lock);
 			action_dump(tid, arr_id, i, act, "unlock t1");
 		}
 	}
@@ -129,18 +125,7 @@ action_cancel_worker(void *arg)
 static void
 actions_dump(struct root *r)
 {
-	int tid = gettid();
 
-	for (unsigned i = 0; i < Threads; ++i) {
-		for (unsigned j = 0; j < Ops_per_thread; ++j) {
-			struct action *a = &r->actions[i][j];
-			struct __pthread_mutex_s *lock =
-					(struct __pthread_mutex_s *)&a->prims->lock;
-			if (lock->__nusers == 0)
-				continue;
-			action_dump(tid, i, j, a, "dump");
-		}
-	}
 }
 
 static void
@@ -182,26 +167,21 @@ main(int argc, char *argv[])
 		for (unsigned j = 0; j < Ops_per_thread; ++j) {
 			struct action *a = &r->actions[i][j];
 			a->val = 0;
-			a->prims = malloc(sizeof(*a->prims));
-			memset((void*)a->prims, 0, sizeof(*a->prims));
-			util_mutex_init((os_mutex_t *)&a->prims->lock);
-			util_cond_init((os_cond_t *)&a->prims->cond);
+			util_mutex_init((os_mutex_t *)&a->lock);
+			util_cond_init((os_cond_t *)&a->cond);
 		}
 	}
 
 	dump = fopen("/dev/shm/obj_pmalloc_mt_dump", "w");
-
 	run_worker(action_cancel_worker, args);
-	sleep(5);
-
 	actions_dump(r);
 	fclose(dump);
 
 	for (unsigned i = 0; i < Threads; ++i) {
 		for (unsigned j = 0; j < Ops_per_thread; ++j) {
 			struct action *a = &r->actions[i][j];
-			util_mutex_destroy((os_mutex_t *)&a->prims->lock);
-			util_cond_destroy((os_cond_t *)&a->prims->cond);
+			util_mutex_destroy((os_mutex_t *)&a->lock);
+			util_cond_destroy((os_cond_t *)&a->cond);
 		}
 	}
 
