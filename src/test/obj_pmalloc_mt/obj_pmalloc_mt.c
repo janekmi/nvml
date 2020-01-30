@@ -75,12 +75,14 @@ struct worker_args {
 	unsigned idx;
 };
 
+FILE *dump;
+
 static inline void
 action_dump(unsigned thread, unsigned op, struct action *a)
 {
 	struct __pthread_mutex_s *lock =
 						(struct __pthread_mutex_s *)&a->lock;
-	printf("actions[%u][%u] = {nusers: %u, owner: %d}\n",
+	fprintf(dump, "actions[%u][%u] = {nusers: %u, owner: %d}\n",
 			thread, op, lock->__nusers, lock->__owner);
 }
 
@@ -212,9 +214,14 @@ main(int argc, char *argv[])
 		}
 	}
 
+	dump = fopen("/dev/shm/obj_pmalloc_mt_dump", "w");
+
 	run_worker(action_cancel_worker, args);
 	sleep(5);
+
 	actions_dump(r);
+	fclose(dump);
+
 	actions_clear(pop, r);
 
 	pmemobj_close(pop);
