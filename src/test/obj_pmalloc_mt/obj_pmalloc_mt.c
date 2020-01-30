@@ -100,7 +100,8 @@ util_mutex_destroy(pthread_mutex_t *mtx)
 {
 	int ret = pthread_mutex_destroy(mtx);
 	if (ret) {
-		errno = ret;
+		fprintf(dump, "pthread_mutex_destroy: %s\n", strerror(ret));
+		fclose(dump);
 		exit(1);
 	}
 }
@@ -263,7 +264,6 @@ main(int argc, char *argv[])
 	dump = fopen("/dev/shm/obj_pmalloc_mt_dump", "w");
 	run_worker(action_cancel_worker, args);
 	actions_dump(r);
-	fclose(dump);
 
 	for (unsigned i = 0; i < Threads; ++i) {
 		for (unsigned j = 0; j < Ops_per_thread; ++j) {
@@ -272,6 +272,8 @@ main(int argc, char *argv[])
 			util_cond_destroy(&a->cond);
 		}
 	}
+
+	fclose(dump);
 
 	DONE(NULL);
 }
