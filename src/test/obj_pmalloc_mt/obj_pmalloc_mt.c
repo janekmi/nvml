@@ -80,12 +80,13 @@ struct worker_args {
 FILE *dump;
 
 static inline void
-action_dump(int tid, unsigned thread, unsigned op, struct action *a)
+action_dump(int tid, unsigned thread, unsigned op, struct action *a,
+		const char *comment)
 {
 	struct __pthread_mutex_s *lock =
 						(struct __pthread_mutex_s *)&a->lock;
-	fprintf(dump, "%d -> actions[%u][%u] = {nusers: %u, owner: %d}\n",
-			tid, thread, op, lock->__nusers, lock->__owner);
+	fprintf(dump, "%d -> actions[%u][%u] = {nusers: %u, owner: %d} (%s)\n",
+			tid, thread, op, lock->__nusers, lock->__owner, comment);
 }
 
 static inline int
@@ -106,21 +107,21 @@ action_cancel_worker(void *arg)
 		struct action *act = &a->r->actions[arr_id][i];
 		if (a->idx % 2 == 0) {
 			util_mutex_lock(&act->lock);
-			action_dump(tid, arr_id, i, act);
+			action_dump(tid, arr_id, i, act, "lock (idx %2 == 0)");
 			oid = pmemobj_reserve(a->pop,
 				&act->pact, ALLOC_SIZE, 0);
 			UT_ASSERT(!OID_IS_NULL(oid));
 			util_cond_signal(&act->cond);
 			util_mutex_unlock(&act->lock);
-			action_dump(tid, arr_id, i, act);
+			action_dump(tid, arr_id, i, act, "unlock (idx %2 == 0)");
 		} else {
 			util_mutex_lock(&act->lock);
-			action_dump(tid, arr_id, i, act);
+			action_dump(tid, arr_id, i, act, "lock (idx %2 == 1)");
 			while (act->pact.heap.offset == 0)
 				util_cond_wait(&act->cond, &act->lock);
 			pmemobj_cancel(a->pop, &act->pact, 1);
 			util_mutex_unlock(&act->lock);
-			action_dump(tid, arr_id, i, act);
+			action_dump(tid, arr_id, i, act, "unlock (idx %2 == 1)");
 		}
 	}
 
@@ -139,7 +140,7 @@ actions_dump(struct root *r)
 					(struct __pthread_mutex_s *)&a->lock;
 			if (lock->__nusers == 0)
 				continue;
-			action_dump(tid, i, j, a);
+			action_dump(tid, i, j, a, "dump");
 		}
 	}
 }
