@@ -47,9 +47,6 @@
 #define MAX_THREADS 32
 #define MAX_OPS_PER_THREAD 1000
 
-#define CHUNKSIZE (1 << 20)
-#define CHUNKS_PER_THREAD 3
-
 static unsigned Threads;
 static unsigned Ops_per_thread;
 static unsigned Tx_per_thread;
@@ -166,8 +163,6 @@ main(int argc, char *argv[])
 	if (argc != 5)
 		UT_FATAL("usage: %s <threads> <ops/t> <tx/t> [file]", argv[0]);
 
-	PMEMobjpool *pop;
-
 	Threads = ATOU(argv[1]);
 	if (Threads > MAX_THREADS)
 		UT_FATAL("Threads %d > %d", Threads, MAX_THREADS);
@@ -175,24 +170,6 @@ main(int argc, char *argv[])
 	if (Ops_per_thread > MAX_OPS_PER_THREAD)
 		UT_FATAL("Ops per thread %d > %d", Threads, MAX_THREADS);
 	Tx_per_thread = ATOU(argv[3]);
-
-	int exists = util_file_exists(argv[4]);
-	if (exists < 0)
-		UT_FATAL("!util_file_exists");
-
-	if (!exists) {
-		pop = pmemobj_create(argv[4], "TEST", (PMEMOBJ_MIN_POOL) +
-			(MAX_THREADS * CHUNKSIZE * CHUNKS_PER_THREAD),
-		0666);
-
-		if (pop == NULL)
-			UT_FATAL("!pmemobj_create");
-	} else {
-		pop = pmemobj_open(argv[4], "TEST");
-
-		if (pop == NULL)
-			UT_FATAL("!pmemobj_open");
-	}
 
 	struct root *r = malloc(sizeof(*r));
 	UT_ASSERTne(r, NULL);
@@ -227,8 +204,6 @@ main(int argc, char *argv[])
 			util_cond_destroy((os_cond_t *)&a->prims->cond);
 		}
 	}
-
-	pmemobj_close(pop);
 
 	DONE(NULL);
 }
