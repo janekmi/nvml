@@ -158,7 +158,7 @@ util_cond_signal(pthread_cond_t *cond)
 static inline void
 util_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mtx)
 {
-	int ret = pthread_cond_signal(cond);
+	int ret = pthread_cond_wait(cond, mtx);
 	if (ret) {
 		errno = ret;
 		exit(1);
