@@ -162,22 +162,6 @@ actions_dump(struct root *r)
 }
 
 static void
-actions_clear(PMEMobjpool *pop, struct root *r)
-{
-	for (unsigned i = 0; i < Threads; ++i) {
-		for (unsigned j = 0; j < Ops_per_thread; ++j) {
-			struct action *a = &r->actions[i][j];
-			util_mutex_destroy((os_mutex_t *)&a->prims->lock);
-			util_mutex_init((os_mutex_t *)&a->prims->lock);
-			util_cond_destroy((os_cond_t *)&a->prims->cond);
-			util_cond_init((os_cond_t *)&a->prims->cond);
-			memset(&a->pact, 0, sizeof(a->pact));
-			pmemobj_persist(pop, a, sizeof(*a));
-		}
-	}
-}
-
-static void
 run_worker(void *(worker_func)(void *arg), struct worker_args args[])
 {
 	os_thread_t t[MAX_THREADS];
@@ -262,17 +246,15 @@ main(int argc, char *argv[])
 	actions_dump(r);
 	fclose(dump);
 
-	actions_clear(pop, r);
+	for (unsigned i = 0; i < Threads; ++i) {
+		for (unsigned j = 0; j < Ops_per_thread; ++j) {
+			struct action *a = &r->actions[i][j];
+			util_mutex_destroy((os_mutex_t *)&a->prims->lock);
+			util_cond_destroy((os_cond_t *)&a->prims->cond);
+		}
+	}
 
 	pmemobj_close(pop);
 
 	DONE(NULL);
 }
-
-#ifdef _MSC_VER
-/*
- * Since libpmemobj is linked statically, we need to invoke its ctor/dtor.
- */
-MSVC_CONSTR(libpmemobj_init)
-MSVC_DESTR(libpmemobj_fini)
-#endif
