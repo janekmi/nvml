@@ -36,9 +36,14 @@
 #include <stdint.h>
 #include <pthread.h>
 #include <stdlib.h>
-#include <sys/syscall.h>
+#include <unistd.h>
+#include <syscall.h>
 
-#include "unittest.h"
+#include <stdio.h>
+#include <errno.h>
+#include <limits.h>
+#include <string.h>
+#include <assert.h>
 
 #define MAX_THREADS 32
 #define MAX_OPS_PER_THREAD 1000
@@ -229,24 +234,34 @@ run_worker(void *(worker_func)(void *arg), struct worker_args args[])
 		pthread_join(t[i], NULL);
 }
 
+static unsigned
+ATOU(const char *arg)
+{
+	unsigned long long val = strtoull(arg, NULL, 10);
+	if (val > UINT_MAX) {
+		fprintf(stderr, "too big: %s", arg);
+		exit(1);
+	}
+
+	return (unsigned)val;
+}
+
 int
 main(int argc, char *argv[])
 {
-	START(argc, argv, "obj_pmalloc_mt");
-
 	if (argc != 5)
-		UT_FATAL("usage: %s <threads> <ops/t> <tx/t> [file]", argv[0]);
+		fprintf(stderr, "usage: %s <threads> <ops/t> <tx/t> [file]", argv[0]);
 
 	Threads = ATOU(argv[1]);
 	if (Threads > MAX_THREADS)
-		UT_FATAL("Threads %d > %d", Threads, MAX_THREADS);
+		fprintf(stderr, "Threads %d > %d", Threads, MAX_THREADS);
 	Ops_per_thread = ATOU(argv[2]);
 	if (Ops_per_thread > MAX_OPS_PER_THREAD)
-		UT_FATAL("Ops per thread %d > %d", Threads, MAX_THREADS);
+		fprintf(stderr, "Ops per thread %d > %d", Threads, MAX_THREADS);
 	Tx_per_thread = ATOU(argv[3]);
 
 	struct root *r = malloc(sizeof(*r));
-	UT_ASSERTne(r, NULL);
+	assert(r != NULL);
 
 	struct worker_args args[MAX_THREADS];
 
@@ -274,6 +289,4 @@ main(int argc, char *argv[])
 	}
 
 	fclose(dump);
-
-	DONE(NULL);
 }
