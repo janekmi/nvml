@@ -50,7 +50,6 @@
 
 static unsigned Threads;
 static unsigned Ops_per_thread;
-static unsigned Tx_per_thread;
 
 struct action {
 	pthread_mutex_t lock;
@@ -249,16 +248,19 @@ ATOU(const char *arg)
 int
 main(int argc, char *argv[])
 {
-	if (argc != 5)
-		fprintf(stderr, "usage: %s <threads> <ops/t> <tx/t> [file]", argv[0]);
+	if (argc != 3)
+		fprintf(stderr, "usage: %s <threads> <ops/t>\n", argv[0]);
 
 	Threads = ATOU(argv[1]);
-	if (Threads > MAX_THREADS)
+	if (Threads > MAX_THREADS) {
 		fprintf(stderr, "Threads %d > %d", Threads, MAX_THREADS);
+		exit(1);
+	}
 	Ops_per_thread = ATOU(argv[2]);
-	if (Ops_per_thread > MAX_OPS_PER_THREAD)
+	if (Ops_per_thread > MAX_OPS_PER_THREAD) {
 		fprintf(stderr, "Ops per thread %d > %d", Threads, MAX_THREADS);
-	Tx_per_thread = ATOU(argv[3]);
+		exit(1);
+	}
 
 	struct root *r = malloc(sizeof(*r));
 	assert(r != NULL);
