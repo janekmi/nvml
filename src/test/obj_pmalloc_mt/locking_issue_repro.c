@@ -31,7 +31,7 @@
  */
 
 /*
- * obj_pmalloc_mt.c -- multithreaded test of allocator
+ * locking_issue_repro.c -- XXX
  */
 #include <stdint.h>
 #include <pthread.h>

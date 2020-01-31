@@ -1,2 +1,1 @@
-obj_pmalloc_mt
-plain_pthread_repro
+locking_issue_repro
