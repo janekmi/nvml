@@ -473,9 +473,11 @@ cq_read(struct rpma_connection *conn, struct ibv_wc *wc)
 	}
 
 	ASSERTeq(ret, 1);
-	ASSERTeq(wc->status, IBV_WC_SUCCESS); /* XXX */
 
-	return ret;
+	if (wc->status == IBV_WC_SUCCESS)
+		return ret;
+
+	return -((int)wc->status);
 }
 
 int

@@ -138,10 +138,23 @@ hello_init(struct rpma_connection *conn, void *uarg)
 static int
 hello_revisit(struct rpma_connection *conn, void *uarg)
 {
+	time_t start_t, end_t;
+	double diff_t;
+	int ret;
+
+	sleep(1);
+
 	struct client_t *clnt = uarg;
 	printf("read message from the target...\n");
-	rpma_connection_read(conn, clnt->local.mem, 0, clnt->remote.mem, 0,
+
+	/* measure how long it takes to return from READ when disconnected */
+	time(&start_t);
+	ret = rpma_connection_read(conn, clnt->local.mem, 0, clnt->remote.mem, 0,
 			HELLO_SIZE);
+	time(&end_t);
+	diff_t = difftime(end_t, start_t);
+	printf("took: %f\n", diff_t);
+	exit(ret);
 
 	struct hello_t *hello = clnt->local.ptr;
 
@@ -203,6 +216,8 @@ send_msg(struct rpma_connection *conn, void *arg)
 		msg->init_required = 1;
 
 	rpma_connection_send(conn, msg);
+
+	rpma_connection_disconnect(conn); /* XXX */
 
 	rpma_connection_dispatch_break(conn);
 
