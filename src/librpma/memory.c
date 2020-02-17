@@ -53,7 +53,7 @@ usage_to_access(int usage)
 	}
 
 	if (usage & RPMA_MR_READ_DST) {
-		RPMA_FLAG_ON(access, 0); /* XXX */
+		RPMA_FLAG_ON(access, IBV_ACCESS_LOCAL_WRITE);
 		RPMA_FLAG_OFF(usage, RPMA_MR_READ_DST);
 	}
 
