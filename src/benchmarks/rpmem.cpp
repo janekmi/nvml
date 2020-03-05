@@ -285,6 +285,12 @@ do_warmup(struct rpmem_bench *mb)
 	uint64_t t2 = stop.tv_sec * 1000000 + stop.tv_usec;
 	uint64_t diff = t2 - t1;
 	fprintf(stdout, "do_warmup() [took: %" PRIu64 "]\n", diff);
+	fprintf(stdout, "Press key to continue...\n");
+	fflush(stdout);
+
+	getchar();
+
+	fprintf(stdout, "Run the benchmark.\n");
 	fflush(stdout);
 
 	return 0;
