@@ -1,6 +1,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.26730.15
+# Visual Studio 14
+VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "obj_pmemlog_minimal", "examples\libpmemobj\pmemlog\obj_pmemlog_minimal.vcxproj", "{0056B0B6-CB3E-4F0E-B6DC-48D59CB8E235}"
 EndProject
@@ -829,6 +829,8 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "obj_list_remove", "test\obj_list_remove\obj_list_remove.vcxproj", "{FF6E5B0C-DC00-4C93-B9C2-63D1E858BA79}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "obj_defrag", "test\obj_defrag\obj_defrag.vcxproj", "{FF6E5B0C-DC00-4C93-B9C2-63D1E858BA80}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "pmem2_usc", "test\pmem2_usc\pmem2_usc.vcxproj", "{4421072D-813E-4DC9-A599-795652E65389}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -1877,6 +1879,10 @@ Global
 		{FF6E5B0C-DC00-4C93-B9C2-63D1E858BA80}.Debug|x64.Build.0 = Debug|x64
 		{FF6E5B0C-DC00-4C93-B9C2-63D1E858BA80}.Release|x64.ActiveCfg = Release|x64
 		{FF6E5B0C-DC00-4C93-B9C2-63D1E858BA80}.Release|x64.Build.0 = Release|x64
+		{4421072D-813E-4DC9-A599-795652E65389}.Debug|x64.ActiveCfg = Debug|x64
+		{4421072D-813E-4DC9-A599-795652E65389}.Debug|x64.Build.0 = Debug|x64
+		{4421072D-813E-4DC9-A599-795652E65389}.Release|x64.ActiveCfg = Release|x64
+		{4421072D-813E-4DC9-A599-795652E65389}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -2177,6 +2183,7 @@ Global
 		{FEA09B48-34C2-4963-8A5A-F97BDA136D72} = {B870D8A6-12CD-4DD0-B843-833695C2310A}
 		{FF6E5B0C-DC00-4C93-B9C2-63D1E858BA79} = {63C9B3F8-437D-4AD9-B32D-D04AE38C35B6}
 		{FF6E5B0C-DC00-4C93-B9C2-63D1E858BA80} = {63C9B3F8-437D-4AD9-B32D-D04AE38C35B6}
+		{4421072D-813E-4DC9-A599-795652E65389} = {A14A4556-9092-430D-B9CA-B2B1223D56CB}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {5E690324-2D48-486A-8D3C-DCB520D3F693}
