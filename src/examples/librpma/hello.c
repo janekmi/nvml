@@ -441,8 +441,8 @@ server_pmem(struct base_t *b)
 	struct server_t *svr = b->specific;
 
 	/* try creating a memory pool */
-	size_t len = HELLO_SIZE;
-	int flags = PMEM_FILE_CREATE;
+	size_t len = 0; /* required for Device DAX */
+	int flags = PMEM_FILE_CREATE; /* does not matter */
 	mode_t mode = 0666;
 	svr->ptr = pmem_map_file(b->file, len, flags, mode,
 				&svr->total_size, NULL);
@@ -458,6 +458,7 @@ server_pmem(struct base_t *b)
 	}
 
 	assert(svr->ptr != NULL);
+	assert(svr->total_size >= HELLO_SIZE);
 }
 
 static int
