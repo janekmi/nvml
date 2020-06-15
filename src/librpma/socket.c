@@ -211,13 +211,20 @@ rpma_accept(struct rpma_socket *socket, struct rpma_conn **conn)
 	if (ret)
 		goto err_event_ack;
 
+	/* XXXXXXXXXXXXXXX TEST ZONE */
+
+	struct rdma_event_channel *evch = rdma_create_event_channel();
+	ASSERTne(evch, NULL);
+
+	ASSERTeq(rdma_migrate_id(tmp->id, evch), 0);
+
 	/* wait for an event */
-	ret = rpma_utils_ec_poll_wait(&socket->ec, socket->cfg.setup_timeout);
-	if (ret)
-		goto err_wait_event;
+//	ret = rpma_utils_ec_poll_wait(&socket->ec, socket->cfg.setup_timeout);
+//	if (ret)
+//		goto err_wait_event;
 
 	/* get the event */
-	ret = rdma_get_cm_event(socket->ec.rdma_ec, &socket->edata);
+	ret = rdma_get_cm_event(evch, &socket->edata);
 	if (ret) {
 		ret = RPMA_E_ERRNO;
 		goto err_event;
@@ -243,6 +250,8 @@ rpma_accept(struct rpma_socket *socket, struct rpma_conn **conn)
 		ERR_STR(ret, "rdma_migrate_id");
 		goto err_migrate_id;
 	}
+
+	/* XXXXXXXXXXXXXXX TEST ZONE END */
 
 	*conn = tmp;
 
